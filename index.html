@@ -1451,9 +1451,6 @@
                 }
             }
         }
-                renderMenuList();
-            }
-        }
 
         function renderCategories() {
             const categories = [...new Set(menu.map(item => item.category))];
@@ -1639,15 +1636,8 @@
                 alert('Error updating table count: ' + error.message);
             }
         }
-            for (let i = 1; i <= numTables; i++) {
-                tables.push({ id: i, status: 'empty', orderId: null, staffName: null, readyBatches: 0, totalBatches: 0 });
-            }
-            localStorage.setItem('tables', JSON.stringify(tables));
-            
-            document.getElementById('currentTableCount').textContent = numTables;
-            document.getElementById('tableCountDisplay').textContent = numTables;
-            
-            renderTables();
+
+        // ===== STAFF INTERFACE =====
             alert(`✓ ${numTables} tables!`);
         }
 
@@ -2385,14 +2375,6 @@
         function saveData() {
             // No longer needed - data is saved via API
             // Kept for compatibility
-        }
-            localStorage.setItem('tables', JSON.stringify(tables));
-            localStorage.setItem('orderCounter', orderCounter);
-            localStorage.setItem('batchCounter', batchCounter);
-            localStorage.setItem('staffList', JSON.stringify(staffList));
-            localStorage.setItem('menu', JSON.stringify(menu));
-            localStorage.setItem('numTables', numTables);
-            calculateStorageUsage();
         }
 
         window.addEventListener('beforeunload', saveData);

@@ -73,24 +73,38 @@ self.addEventListener('sync', event => {
 });
 
 async function syncOrders() {
-  // Get pending orders from IndexedDB and sync to server
+  // TODO: Implement IndexedDB synchronization
+  // This would store pending orders when offline and sync when online
   console.log('Syncing orders...');
+  // Future implementation:
+  // 1. Open IndexedDB
+  // 2. Get pending orders
+  // 3. Send to server
+  // 4. Clear from IndexedDB on success
 }
 
 // Push notifications
 self.addEventListener('push', event => {
-  const data = event.data.json();
-  const options = {
-    body: data.body,
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    vibrate: [200, 100, 200],
-    data: data.data
-  };
+  if (!event.data) {
+    return;
+  }
   
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+  try {
+    const data = event.data.json();
+    const options = {
+      body: data.body || 'New notification',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      vibrate: [200, 100, 200],
+      data: data.data || {}
+    };
+    
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'Restaurant Update', options)
+    );
+  } catch (error) {
+    console.error('Error handling push notification:', error);
+  }
 });
 
 self.addEventListener('notificationclick', event => {

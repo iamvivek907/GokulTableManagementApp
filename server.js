@@ -491,17 +491,23 @@ app.get('/api/analytics/popular-items', (req, res) => {
 
 app.get('/api/analytics/daily-sales', (req, res) => {
   try {
-    const { days = 30 } = req.query;
+    let { days = 30 } = req.query;
+    // Sanitize input to prevent SQL injection
+    days = parseInt(days, 10);
+    if (isNaN(days) || days < 1 || days > 365) {
+      days = 30; // Default to 30 days if invalid
+    }
+    
     const sales = db.prepare(`
       SELECT 
         DATE(created_at) as date,
         COUNT(*) as order_count,
         SUM(total) as total_revenue
       FROM orders
-      WHERE status = 'completed' AND created_at >= datetime('now', '-${days} days')
+      WHERE status = 'completed' AND created_at >= datetime('now', ? || ' days')
       GROUP BY DATE(created_at)
       ORDER BY date DESC
-    `).all();
+    `).all(`-${days}`);
     res.json(sales);
   } catch (error) {
     res.status(500).json({ error: error.message });
