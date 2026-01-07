@@ -1,0 +1,1925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gokul Restaurant - Complete Management System</title>
+    <style>
+        :root {
+            --color-primary: #208091;
+            --color-primary-hover: #1a6875;
+            --color-success: #27ae60;
+            --color-danger: #e74c3c;
+            --color-warning: #f39c12;
+            --color-bg: #f8f9fa;
+            --color-surface: #ffffff;
+            --color-text: #2c3e50;
+            --color-border: #ecf0f1;
+            --space-8: 8px;
+            --space-16: 16px;
+            --space-20: 20px;
+            --space-24: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            padding: var(--space-16);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: var(--color-primary);
+            color: white;
+            padding: var(--space-24);
+            border-radius: 8px;
+            margin-bottom: var(--space-24);
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 28px;
+            margin-bottom: var(--space-8);
+        }
+
+        .section {
+            background: var(--color-surface);
+            border-radius: 8px;
+            padding: var(--space-20);
+            border: 1px solid var(--color-border);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: var(--space-24);
+        }
+
+        .section h2 {
+            font-size: 18px;
+            margin-bottom: var(--space-16);
+            color: var(--color-primary);
+            border-bottom: 2px solid var(--color-border);
+            padding-bottom: var(--space-8);
+        }
+
+        .section h3 {
+            font-size: 16px;
+            margin-top: var(--space-16);
+            margin-bottom: var(--space-12);
+            color: var(--color-primary);
+        }
+
+        .btn {
+            padding: var(--space-12) var(--space-16);
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--color-primary-hover);
+        }
+
+        .btn-success {
+            background: var(--color-success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .btn-danger {
+            background: var(--color-danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-warning {
+            background: var(--color-warning);
+            color: white;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: var(--space-16);
+        }
+
+        .form-group label {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 10px;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .tables-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: var(--space-16);
+            margin-bottom: var(--space-24);
+        }
+
+        .table-card {
+            background: linear-gradient(135deg, #f0f7f9 0%, #f5fafb 100%);
+            border: 2px solid var(--color-border);
+            border-radius: 12px;
+            padding: var(--space-16);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .table-card:hover {
+            border-color: var(--color-primary);
+            box-shadow: 0 4px 12px rgba(32, 128, 145, 0.15);
+        }
+
+        .table-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--color-danger);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .table-number {
+            font-size: 42px;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: var(--space-8);
+        }
+
+        .table-status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: var(--space-12);
+        }
+
+        .table-status.empty {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .table-status.occupied {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .table-staff-badge {
+            background: #f0f7f9;
+            color: var(--color-primary);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: var(--space-8);
+        }
+
+        .table-actions {
+            display: flex;
+            gap: var(--space-8);
+            margin-top: var(--space-8);
+        }
+
+        .table-actions .btn {
+            flex: 1;
+            padding: 6px 8px;
+            font-size: 11px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: var(--space-24);
+            border-radius: 12px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            width: 90%;
+        }
+
+        .modal-header {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: var(--space-16);
+        }
+
+        .close-modal {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--color-danger);
+        }
+
+        .batch-section {
+            background: #f0f7f9;
+            padding: var(--space-12);
+            border-radius: 6px;
+            margin-bottom: var(--space-12);
+            border-left: 4px solid var(--color-primary);
+        }
+
+        .batch-header {
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .batch-status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .batch-status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .batch-status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: var(--space-8);
+            margin-bottom: var(--space-16);
+        }
+
+        .menu-btn {
+            padding: var(--space-12);
+            border: 2px solid var(--color-border);
+            background: var(--color-surface);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .menu-btn:hover {
+            border-color: var(--color-primary);
+            background: #f0f7f9;
+        }
+
+        .menu-btn.selected {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .menu-category {
+            margin-bottom: var(--space-16);
+        }
+
+        .menu-category-title {
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: var(--space-8);
+            padding-bottom: var(--space-8);
+            border-bottom: 2px solid var(--color-border);
+        }
+
+        .order-summary {
+            background: #f0f7f9;
+            padding: var(--space-16);
+            border-radius: 6px;
+            margin-bottom: var(--space-16);
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: var(--space-8) 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            font-size: 13px;
+        }
+
+        .order-total {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+            margin-top: var(--space-12);
+            padding-top: var(--space-12);
+            border-top: 2px solid var(--color-primary);
+        }
+
+        .kitchen-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--space-16);
+        }
+
+        .kitchen-order {
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            padding: var(--space-16);
+            background: white;
+        }
+
+        .kitchen-order.pending {
+            border-left: 6px solid var(--color-warning);
+            background: #fffbf0;
+        }
+
+        .kitchen-order.ready {
+            border-left: 6px solid var(--color-success);
+            background: #f0fef0;
+        }
+
+        .kitchen-order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-12);
+            font-weight: 700;
+        }
+
+        .kitchen-order-id {
+            font-size: 16px;
+            color: var(--color-primary);
+        }
+
+        .kitchen-staff-name {
+            font-size: 14px;
+            color: var(--color-warning);
+            background: rgba(243, 156, 18, 0.1);
+            padding: 4px 12px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+
+        .kitchen-items {
+            margin-bottom: var(--space-12);
+        }
+
+        .kitchen-item {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            font-size: 13px;
+        }
+
+        .staff-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-12);
+            background: #f0f7f9;
+            border-radius: 6px;
+            margin-bottom: var(--space-8);
+        }
+
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .report-table th,
+        .report-table td {
+            padding: var(--space-12);
+            text-align: left;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 13px;
+        }
+
+        .report-table th {
+            background: var(--color-primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: var(--space-8);
+            margin-bottom: var(--space-20);
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: var(--space-12) var(--space-16);
+            background: var(--color-border);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--color-text);
+            transition: all 0.2s;
+            font-size: 12px;
+        }
+
+        .tab-btn.active {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .config-panel {
+            background: #f0f7f9;
+            padding: var(--space-16);
+            border-radius: 8px;
+            margin-bottom: var(--space-20);
+        }
+
+        .config-row {
+            display: flex;
+            gap: var(--space-12);
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: var(--space-12);
+        }
+
+        .config-row input {
+            width: 80px;
+            padding: 8px;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .config-row button {
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+
+        .file-input-wrapper {
+            display: flex;
+            gap: var(--space-12);
+            margin-bottom: var(--space-20);
+        }
+
+        .file-input-wrapper input[type="file"] {
+            padding: 8px;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            flex: 1;
+        }
+
+        .storage-info {
+            background: #f0f7f9;
+            padding: var(--space-16);
+            border-radius: 8px;
+            margin-bottom: var(--space-16);
+        }
+
+        .storage-bar {
+            width: 100%;
+            height: 20px;
+            background: var(--color-border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: var(--space-8);
+        }
+
+        .storage-fill {
+            height: 100%;
+            background: var(--color-primary);
+            transition: width 0.3s;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid var(--color-warning);
+            color: #856404;
+            padding: var(--space-12);
+            border-radius: 6px;
+            margin-bottom: var(--space-16);
+        }
+
+        .success-box {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: var(--space-12);
+            border-radius: 6px;
+            margin-bottom: var(--space-16);
+        }
+
+        @media (max-width: 768px) {
+            .tables-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: var(--space-12);
+            }
+
+            .table-card {
+                min-height: 160px;
+                padding: var(--space-12);
+            }
+
+            .table-number {
+                font-size: 32px;
+            }
+
+            .kitchen-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .tables-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: var(--space-8);
+            }
+
+            .table-card {
+                min-height: 140px;
+                padding: var(--space-8);
+            }
+
+            .table-number {
+                font-size: 28px;
+            }
+
+            header h1 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Screen -->
+        <div id="loginScreen" style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+            <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; max-width: 500px; width: 100%;">
+                <h1 style="font-size: 32px; margin-bottom: 10px; color: var(--color-primary);">🍽️ Gokul Restaurant</h1>
+                <p style="color: #7f8c8d; margin-bottom: 30px; font-size: 14px;">Select Your Role</p>
+                
+                <button onclick="showStaffSelect()" style="width: 100%; padding: 16px; margin-bottom: 12px; background: var(--color-primary); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">👨‍💼 Staff / Team Member</button>
+                
+                <button onclick="showOwnerLogin()" style="width: 100%; padding: 16px; background: var(--color-success); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">👑 Owner / Manager</button>
+                
+                <button onclick="showKitchenDisplay()" style="width: 100%; padding: 16px; margin-top: 12px; background: #e67e22; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">👨‍🍳 Kitchen Display System</button>
+            </div>
+        </div>
+
+        <!-- Staff Select Screen -->
+        <div id="staffSelectScreen" style="display: none; display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+            <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%;">
+                <h1 style="font-size: 28px; margin-bottom: 10px; color: var(--color-primary);">👨‍💼 Staff Login</h1>
+                <p style="color: #7f8c8d; margin-bottom: 20px; font-size: 14px;">Enter your name to login</p>
+                
+                <div style="margin-bottom: 20px;">
+                    <input type="text" id="customStaffName" placeholder="Your Name" style="width: 100%; padding: 12px; border: 2px solid var(--color-border); border-radius: 8px; font-size: 16px; box-sizing: border-box;" onkeypress="if(event.key==='Enter') loginWithStaffName()">
+                </div>
+                
+                <button onclick="loginWithStaffName()" style="width: 100%; padding: 12px; margin-bottom: 12px; background: var(--color-success); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Login</button>
+                
+                <button onclick="backToRoleSelect()" style="width: 100%; padding: 12px; background: var(--color-border); color: var(--color-text); border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Back</button>
+            </div>
+        </div>
+
+        <!-- Owner Password Login -->
+        <div id="ownerLoginScreen" style="display: none; display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+            <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%;">
+                <h1 style="font-size: 32px; margin-bottom: 10px; color: var(--color-success);">👑 Owner</h1>
+                <p style="color: #7f8c8d; margin-bottom: 20px; font-size: 14px;">Enter Password</p>
+                
+                <div style="margin-bottom: 20px;">
+                    <input type="password" id="ownerPassword" placeholder="Enter password" style="width: 100%; padding: 12px; border: 2px solid var(--color-border); border-radius: 8px; font-size: 16px; box-sizing: border-box;" onkeypress="if(event.key==='Enter') verifyOwnerPassword()">
+                </div>
+                
+                <button onclick="verifyOwnerPassword()" style="width: 100%; padding: 12px; margin-bottom: 12px; background: var(--color-success); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Login</button>
+                
+                <button onclick="backToRoleSelect()" style="width: 100%; padding: 12px; background: var(--color-border); color: var(--color-text); border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Back</button>
+                
+                <p id="passwordError" style="color: var(--color-danger); margin-top: 12px; font-size: 13px; display: none;"></p>
+            </div>
+        </div>
+
+        <!-- Main App -->
+        <div id="appScreen" style="display: none;">
+            <header>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h1>🍽️ Gokul</h1>
+                        <p id="headerSubtitle">Management</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p style="font-size: 12px; margin: 0; opacity: 0.9;"><strong id="roleDisplay"></strong></p>
+                        <button onclick="logout()" style="background: rgba(255,255,255,0.3); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 4px;">Logout</button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- STAFF INTERFACE -->
+            <div id="staffInterface" style="display: none;">
+                <!-- READY ORDERS NOTIFICATION -->
+                <div id="readyOrdersNotification" style="display: none;"></div>
+
+                <div class="section">
+                    <h2>📋 Tables: <span id="tableCountDisplay">4</span></h2>
+                    <div class="tables-grid" id="tablesGrid"></div>
+                </div>
+
+                <div class="section">
+                    <h2>📊 Performance</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-16);">
+                        <div style="background: #f0f7f9; padding: var(--space-16); border-radius: 8px; border-left: 4px solid var(--color-primary);">
+                            <div style="font-size: 12px; font-weight: 600;">Orders</div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--color-primary);" id="staffOrderCount">0</div>
+                        </div>
+                        <div style="background: #f0f7f9; padding: var(--space-16); border-radius: 8px; border-left: 4px solid var(--color-success);">
+                            <div style="font-size: 12px; font-weight: 600;">Revenue</div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--color-success);" id="staffRevenueTotal">₹0</div>
+                        </div>
+                        <div style="background: #f0f7f9; padding: var(--space-16); border-radius: 8px; border-left: 4px solid var(--color-warning);">
+                            <div style="font-size: 12px; font-weight: 600;">Avg</div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--color-warning);" id="staffAvgOrder">₹0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KITCHEN DISPLAY SYSTEM -->
+            <div id="kitchenInterface" style="display: none;">
+                <div class="section">
+                    <h2>🍳 Kitchen Orders</h2>
+                    
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" onclick="switchKitchenTab('pending')">⏳ Pending</button>
+                        <button class="tab-btn" onclick="switchKitchenTab('ready')">✓ Ready</button>
+                    </div>
+
+                    <div id="pending" class="tab-content active">
+                        <div class="kitchen-grid" id="pendingOrders">
+                            <p style="text-align: center; padding: 40px; grid-column: 1/-1;">No pending orders</p>
+                        </div>
+                    </div>
+
+                    <div id="ready" class="tab-content">
+                        <div class="kitchen-grid" id="readyOrders">
+                            <p style="text-align: center; padding: 40px; grid-column: 1/-1;">No ready orders</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OWNER INTERFACE -->
+            <div id="ownerInterface" style="display: none;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-16); margin-bottom: var(--space-24);">
+                    <div class="section" style="margin-bottom: 0;">
+                        <h3 style="margin: 0 0 8px 0; font-size: 13px;">Revenue</h3>
+                        <div style="font-size: 28px; font-weight: 700; color: var(--color-primary);">₹<span id="totalRevenueDisplay">0</span></div>
+                    </div>
+                    <div class="section" style="margin-bottom: 0;">
+                        <h3 style="margin: 0 0 8px 0; font-size: 13px;">Orders</h3>
+                        <div style="font-size: 28px; font-weight: 700; color: var(--color-success);" id="totalOrdersDisplay">0</div>
+                    </div>
+                    <div class="section" style="margin-bottom: 0;">
+                        <h3 style="margin: 0 0 8px 0; font-size: 13px;">Active</h3>
+                        <div style="font-size: 28px; font-weight: 700; color: var(--color-warning);" id="activeTablesDisplay">0</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" onclick="switchOwnerTab('config')">⚙️ Configure</button>
+                        <button class="tab-btn" onclick="switchOwnerTab('menu')">📋 Menu</button>
+                        <button class="tab-btn" onclick="switchOwnerTab('backup')">💾 Backup</button>
+                        <button class="tab-btn" onclick="switchOwnerTab('staffPerf')">📊 Staff</button>
+                        <button class="tab-btn" onclick="switchOwnerTab('manageStaff')">👥 Manage</button>
+                        <button class="tab-btn" onclick="switchOwnerTab('orders')">Orders</button>
+                    </div>
+
+                    <!-- CONFIGURATION TAB -->
+                    <div id="config" class="tab-content active">
+                        <h3>⚙️ Restaurant Configuration</h3>
+                        <div class="config-panel">
+                            <div class="config-row">
+                                <label style="font-weight: 600;">Tables:</label>
+                                <input type="number" id="tableCountInput" min="1" max="100" value="4">
+                                <button class="btn btn-primary" onclick="updateTableCount()">Save</button>
+                                <span style="font-size: 12px; color: #7f8c8d;">Current: <strong id="currentTableCount">4</strong></span>
+                            </div>
+                        </div>
+                        <p style="background: #cce5ff; padding: 12px; border-radius: 6px; font-size: 12px; color: #004085;">
+                            💡 Change number of tables - all staff instantly see the update!
+                        </p>
+                    </div>
+
+                    <!-- MENU TAB -->
+                    <div id="menu" class="tab-content">
+                        <h3>📋 Menu Management</h3>
+                        
+                        <div style="background: #d4edda; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 12px; color: #155724;">
+                            ✓ Current menu items: <strong id="menuItemCount">17</strong>
+                        </div>
+
+                        <h4 style="margin-bottom: 12px; font-weight: 600;">📥 Upload Menu (CSV)</h4>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="menuFile" accept=".csv" />
+                            <button class="btn btn-primary" onclick="uploadMenuCSV()">Upload</button>
+                            <button class="btn btn-warning" onclick="downloadMenuTemplate()">📥 Template</button>
+                        </div>
+
+                        <div class="warning-box">
+                            <strong>📝 CSV Format:</strong><br/>
+                            Category,ItemName,Price<br/>
+                            Appetizers,Samosa,8<br/>
+                            Appetizers,French Fries,50<br/>
+                            Main Course,Biryani (Full),180
+                        </div>
+
+                        <h4 style="margin-bottom: 12px; margin-top: 20px; font-weight: 600;">➕ Add New Item</h4>
+                        <div class="config-row">
+                            <select id="newItemCategory" style="flex: 1; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px;">
+                                <option value="">Select Category</option>
+                                <option value="Appetizers">Appetizers</option>
+                                <option value="Main Course">Main Course</option>
+                                <option value="Breads">Breads</option>
+                                <option value="Beverages">Beverages</option>
+                                <option value="Desserts">Desserts</option>
+                            </select>
+                        </div>
+                        <div class="config-row">
+                            <input type="text" id="newItemName" placeholder="Item Name" style="flex: 1;">
+                            <input type="number" id="newItemPrice" placeholder="Price" style="width: 80px;">
+                            <button class="btn btn-success" onclick="addNewMenuItem()">Add</button>
+                        </div>
+
+                        <h4 style="margin-bottom: 12px; margin-top: 20px; font-weight: 600;">📂 Categories</h4>
+                        <div id="categoriesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;"></div>
+
+                        <h4 style="margin-bottom: 12px; margin-top: 20px; font-weight: 600;">📋 All Items</h4>
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Item</th>
+                                    <th>Price</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="menuItemsList">
+                                <tr><td colspan="4" style="text-align: center;">Loading menu...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- BACKUP TAB -->
+                    <div id="backup" class="tab-content">
+                        <h3>💾 Data Backup & Storage</h3>
+                        
+                        <div class="storage-info">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <strong>Storage Usage:</strong>
+                                <span id="storageUsage">0 MB / 5000 MB</span>
+                            </div>
+                            <div class="storage-bar">
+                                <div class="storage-fill" id="storageFill" style="width: 0%"></div>
+                            </div>
+                            <small style="color: #7f8c8d;" id="storagePercent">0% used</small>
+                        </div>
+
+                        <h4 style="margin-bottom: 12px; font-weight: 600;">💾 Backup Options</h4>
+                        <div class="config-row">
+                            <button class="btn btn-primary" onclick="createBackup()" style="flex: 1;">💾 Create Full Backup</button>
+                            <button class="btn btn-warning" onclick="exportData()" style="flex: 1;">📥 Export Data</button>
+                            <button class="btn btn-success" onclick="downloadBackup()" style="flex: 1;">⬇️ Download</button>
+                        </div>
+
+                        <h4 style="margin-bottom: 12px; margin-top: 20px; font-weight: 600;">📥 Restore Backup</h4>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="backupFile" accept=".json" />
+                            <button class="btn btn-danger" onclick="restoreBackup()">Restore</button>
+                        </div>
+
+                        <div class="warning-box" style="margin-top: 20px;">
+                            <strong>⚠️ Warning:</strong> Restoring will replace all current data. Make a backup first!
+                        </div>
+
+                        <h4 style="margin-bottom: 12px; margin-top: 20px; font-weight: 600;">📊 Multi-Year Data</h4>
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Year</th>
+                                    <th>Data Points</th>
+                                    <th>Size</th>
+                                    <th>Last Updated</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="backupList">
+                                <tr><td colspan="5" style="text-align: center;">No backups yet</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- STAFF PERFORMANCE TAB -->
+                    <div id="staffPerf" class="tab-content">
+                        <h3>📊 Staff Performance</h3>
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Staff</th>
+                                    <th>Orders</th>
+                                    <th>Revenue</th>
+                                    <th>Avg</th>
+                                    <th>%</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffPerfList">
+                                <tr><td colspan="5" style="text-align: center;">No data</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- MANAGE STAFF TAB -->
+                    <div id="manageStaff" class="tab-content">
+                        <h3>👥 Staff Management</h3>
+                        <div style="margin-bottom: var(--space-20);">
+                            <div class="form-group">
+                                <label>Staff Name</label>
+                                <input type="text" id="newStaffName" placeholder="Name">
+                            </div>
+                            <button class="btn btn-success" onclick="addNewStaff()" style="width: 100%;">+ Add Staff</button>
+                        </div>
+                        <h4 style="margin-bottom: 12px; font-weight: 600;">Current Staff</h4>
+                        <div id="staffMembersList"></div>
+                    </div>
+
+                    <!-- ORDERS TAB -->
+                    <div id="orders" class="tab-content">
+                        <h3>Today's Orders</h3>
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Order</th>
+                                    <th>Staff</th>
+                                    <th>Table</th>
+                                    <th>Batches</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersListTable">
+                                <tr><td colspan="6" style="text-align: center;">No orders</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Modal -->
+    <div id="orderModal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-16);">
+                <div class="modal-header" style="margin-bottom: 0; font-size: 14px;">ORD-<span id="modalOrderId"></span> | Table <span id="modalTableNo"></span> | <span id="modalStaffName"></span></div>
+                <span class="close-modal" onclick="closeOrderModal()">&times;</span>
+            </div>
+
+            <div id="sentBatches" style="margin-bottom: var(--space-16);"></div>
+
+            <div style="margin-bottom: var(--space-16);">
+                <h3 style="margin-bottom: var(--space-12); font-size: 14px;">Current Items (Not Sent)</h3>
+                <div class="order-summary" id="currentOrderItems">
+                    <p style="text-align: center; color: #7f8c8d; margin: 0;">No items</p>
+                </div>
+            </div>
+
+            <div style="margin-bottom: var(--space-16);">
+                <h3 style="margin-bottom: var(--space-12); font-size: 14px;">Add Items by Category</h3>
+                <div id="categoryMenuGrid" style="margin-bottom: 12px;"></div>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="sendToKitchen()" style="flex: 1;">🖨️ Send</button>
+                <button class="btn btn-success" onclick="completeOrder()" style="flex: 1;">✓ Complete</button>
+                <button class="btn btn-danger" onclick="closeOrderModal()" style="flex: 1;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Default Menu with Categories
+        const defaultMenu = [
+            { category: 'Appetizers', name: 'Samosa', price: 8 },
+            { category: 'Appetizers', name: 'French Fries', price: 50 },
+            { category: 'Appetizers', name: 'Chilli Potato', price: 60 },
+            { category: 'Appetizers', name: 'Honey Chilli Potato', price: 70 },
+            { category: 'Breads', name: 'Idly', price: 50 },
+            { category: 'Breads', name: 'Veg Momos', price: 50 },
+            { category: 'Breads', name: 'Veg Fried Momos', price: 70 },
+            { category: 'Main Course', name: 'Paneer Momos', price: 80 },
+            { category: 'Main Course', name: 'Paneer Fried Momos', price: 100 },
+            { category: 'Main Course', name: 'Chilli Paneer (Half)', price: 80 },
+            { category: 'Main Course', name: 'Chilli Paneer (Full)', price: 150 },
+            { category: 'Main Course', name: 'Gokul Thali', price: 100 },
+            { category: 'Main Course', name: 'Gokul Special Thali', price: 140 },
+            { category: 'Main Course', name: 'Chowmein (Half)', price: 50 },
+            { category: 'Main Course', name: 'Chowmein (Full)', price: 90 },
+            { category: 'Main Course', name: 'Biryani (Half)', price: 120 },
+            { category: 'Main Course', name: 'Biryani (Full)', price: 180 }
+        ];
+
+        // Global State
+        let menu = JSON.parse(localStorage.getItem('menu')) || defaultMenu;
+        let staffList = JSON.parse(localStorage.getItem('staffList')) || ['Raj', 'Priya', 'Arjun'];
+        let orders = JSON.parse(localStorage.getItem('orders')) || [];
+        let kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrders')) || [];
+        let backups = JSON.parse(localStorage.getItem('backups')) || [];
+        let numTables = parseInt(localStorage.getItem('numTables')) || 4;
+        let tables = [];
+
+        let currentRole = localStorage.getItem('currentRole') || null;
+        let currentStaff = localStorage.getItem('currentStaff') || null;
+        let currentMode = 'staff';
+        let orderCounter = parseInt(localStorage.getItem('orderCounter')) || 1000;
+        let batchCounter = parseInt(localStorage.getItem('batchCounter')) || 100;
+        let selectedTable = null;
+        let currentOrderItems = [];
+
+        const OWNER_PASSWORD = 'gokul2024';
+
+        function initializeTables() {
+            const saved = JSON.parse(localStorage.getItem('tables'));
+            if (saved && saved.length === numTables) {
+                tables = saved;
+            } else {
+                tables = [];
+                for (let i = 1; i <= numTables; i++) {
+                    tables.push({ id: i, status: 'empty', orderId: null, staffName: null, readyBatches: 0, totalBatches: 0 });
+                }
+            }
+        }
+
+        function showStaffSelect() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('staffSelectScreen').style.display = 'flex';
+            document.getElementById('customStaffName').focus();
+        }
+
+        function loginWithStaffName() {
+            let name = document.getElementById('customStaffName').value.trim();
+            if (!name) {
+                alert('Enter name');
+                return;
+            }
+            
+            // Add to staff list if new
+            if (!staffList.includes(name)) {
+                staffList.push(name);
+                localStorage.setItem('staffList', JSON.stringify(staffList));
+            }
+            
+            currentRole = 'staff';
+            currentStaff = name;
+            currentMode = 'staff';
+            localStorage.setItem('currentRole', currentRole);
+            localStorage.setItem('currentStaff', currentStaff);
+            login();
+        }
+
+        function showOwnerLogin() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('ownerLoginScreen').style.display = 'flex';
+        }
+
+        function showKitchenDisplay() {
+            document.getElementById('loginScreen').style.display = 'none';
+            currentRole = 'kitchen';
+            currentMode = 'kitchen';
+            localStorage.setItem('currentRole', 'kitchen');
+            login();
+        }
+
+        function verifyOwnerPassword() {
+            const password = document.getElementById('ownerPassword').value;
+            if (password === OWNER_PASSWORD) {
+                currentRole = 'owner';
+                currentMode = 'owner';
+                localStorage.setItem('currentRole', 'owner');
+                login();
+            } else {
+                document.getElementById('passwordError').textContent = 'Wrong password';
+                document.getElementById('passwordError').style.display = 'block';
+                document.getElementById('ownerPassword').value = '';
+            }
+        }
+
+        function backToRoleSelect() {
+            document.getElementById('staffSelectScreen').style.display = 'none';
+            document.getElementById('ownerLoginScreen').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+        }
+
+        function login() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('staffSelectScreen').style.display = 'none';
+            document.getElementById('ownerLoginScreen').style.display = 'none';
+            document.getElementById('appScreen').style.display = 'block';
+
+            initializeTables();
+
+            if (currentMode === 'staff') {
+                document.getElementById('staffInterface').style.display = 'block';
+                document.getElementById('kitchenInterface').style.display = 'none';
+                document.getElementById('ownerInterface').style.display = 'none';
+                document.getElementById('roleDisplay').textContent = `${currentStaff} (Staff)`;
+                initStaffInterface();
+                setInterval(updateStaffNotifications, 1000);
+            } else if (currentMode === 'kitchen') {
+                document.getElementById('staffInterface').style.display = 'none';
+                document.getElementById('kitchenInterface').style.display = 'block';
+                document.getElementById('ownerInterface').style.display = 'none';
+                document.getElementById('roleDisplay').textContent = 'Kitchen Display';
+                initKitchenDisplay();
+                setInterval(renderKitchenOrders, 2000);
+            } else {
+                document.getElementById('staffInterface').style.display = 'none';
+                document.getElementById('kitchenInterface').style.display = 'none';
+                document.getElementById('ownerInterface').style.display = 'block';
+                document.getElementById('roleDisplay').textContent = 'Owner';
+                initOwnerInterface();
+            }
+        }
+
+        function logout() {
+            currentRole = null;
+            currentStaff = null;
+            localStorage.setItem('currentRole', '');
+            localStorage.setItem('currentStaff', '');
+            document.getElementById('appScreen').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+        }
+
+        // ===== MENU MANAGEMENT =====
+        function downloadMenuTemplate() {
+            const csv = 'Category,ItemName,Price\nAppetizers,Samosa,8\nAppetizers,French Fries,50\nMain Course,Biryani (Full),180\nBeverages,Lassi,40';
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'menu_template.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function uploadMenuCSV() {
+            const file = document.getElementById('menuFile').files[0];
+            if (!file) {
+                alert('Select a CSV file');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const csv = e.target.result;
+                const lines = csv.split('\n');
+                const newMenu = [];
+
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim() === '') continue;
+                    const [category, name, price] = lines[i].split(',');
+                    if (category && name && price) {
+                        newMenu.push({
+                            category: category.trim(),
+                            name: name.trim(),
+                            price: parseFloat(price.trim())
+                        });
+                    }
+                }
+
+                if (newMenu.length > 0) {
+                    menu = newMenu;
+                    saveData();
+                    renderMenuList();
+                    renderCategories();
+                    alert(`✓ ${newMenu.length} items uploaded!`);
+                    document.getElementById('menuFile').value = '';
+                } else {
+                    alert('No valid items found in CSV');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function addNewMenuItem() {
+            const category = document.getElementById('newItemCategory').value;
+            const name = document.getElementById('newItemName').value.trim();
+            const price = parseFloat(document.getElementById('newItemPrice').value);
+
+            if (!category || !name || !price) {
+                alert('Fill all fields');
+                return;
+            }
+
+            menu.push({ category, name, price });
+            saveData();
+            renderMenuList();
+            renderCategories();
+
+            document.getElementById('newItemName').value = '';
+            document.getElementById('newItemPrice').value = '';
+            document.getElementById('newItemCategory').value = '';
+            alert('✓ Item added');
+        }
+
+        function renderMenuList() {
+            const tbody = document.getElementById('menuItemsList');
+            document.getElementById('menuItemCount').textContent = menu.length;
+
+            tbody.innerHTML = menu.map((item, idx) => `
+                <tr>
+                    <td>${item.category}</td>
+                    <td>${item.name}</td>
+                    <td>₹${item.price}</td>
+                    <td><button class="btn btn-danger" onclick="removeMenuItem(${idx})" style="padding: 4px 8px; font-size: 11px;">Remove</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function removeMenuItem(idx) {
+            if (confirm('Remove this item?')) {
+                menu.splice(idx, 1);
+                saveData();
+                renderMenuList();
+            }
+        }
+
+        function renderCategories() {
+            const categories = [...new Set(menu.map(item => item.category))];
+            const container = document.getElementById('categoriesList');
+            
+            container.innerHTML = categories.map(cat => {
+                const count = menu.filter(m => m.category === cat).length;
+                return `
+                    <div style="background: #f0f7f9; padding: 12px; border-radius: 6px; text-align: center; border-left: 4px solid var(--color-primary);">
+                        <div style="font-weight: 700; color: var(--color-primary);">${cat}</div>
+                        <div style="font-size: 12px; color: #7f8c8d; margin-top: 4px;">${count} items</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ===== BACKUP & STORAGE =====
+        function calculateStorageUsage() {
+            let total = 0;
+            for (let key in localStorage) {
+                if (localStorage.hasOwnProperty(key)) {
+                    total += localStorage[key].length + key.length;
+                }
+            }
+            const mb = (total / 1024 / 1024).toFixed(2);
+            const percent = ((mb / 5000) * 100).toFixed(2);
+            
+            document.getElementById('storageUsage').textContent = `${mb} MB / 5000 MB`;
+            document.getElementById('storageFill').style.width = percent + '%';
+            document.getElementById('storagePercent').textContent = `${percent}% used`;
+        }
+
+        function createBackup() {
+            const backup = {
+                timestamp: new Date().toISOString(),
+                year: new Date().getFullYear(),
+                data: {
+                    menu: menu,
+                    staffList: staffList,
+                    orders: orders,
+                    kitchenOrders: kitchenOrders,
+                    tables: tables,
+                    numTables: numTables,
+                    orderCounter: orderCounter,
+                    batchCounter: batchCounter
+                }
+            };
+
+            backups.push(backup);
+            localStorage.setItem('backups', JSON.stringify(backups));
+            calculateStorageUsage();
+            renderBackupList();
+            alert('✓ Backup created!');
+        }
+
+        function renderBackupList() {
+            const tbody = document.getElementById('backupList');
+            
+            if (backups.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No backups yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = backups.map((backup, idx) => {
+                const size = (JSON.stringify(backup).length / 1024).toFixed(2);
+                const date = new Date(backup.timestamp).toLocaleString();
+                return `
+                    <tr>
+                        <td>${backup.year}</td>
+                        <td>${Object.keys(backup.data.orders).length} orders</td>
+                        <td>${size} KB</td>
+                        <td>${date}</td>
+                        <td>
+                            <button class="btn btn-success" onclick="restoreBackupData(${idx})" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">Restore</button>
+                            <button class="btn btn-danger" onclick="deleteBackup(${idx})" style="padding: 4px 8px; font-size: 11px;">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function restoreBackupData(idx) {
+            if (!confirm('Restore this backup? Current data will be replaced.')) return;
+
+            const backup = backups[idx];
+            menu = backup.data.menu;
+            staffList = backup.data.staffList;
+            orders = backup.data.orders;
+            kitchenOrders = backup.data.kitchenOrders;
+            tables = backup.data.tables;
+            numTables = backup.data.numTables;
+            orderCounter = backup.data.orderCounter;
+            batchCounter = backup.data.batchCounter;
+
+            saveData();
+            renderMenuList();
+            renderBackupList();
+            alert('✓ Backup restored!');
+        }
+
+        function deleteBackup(idx) {
+            if (confirm('Delete this backup?')) {
+                backups.splice(idx, 1);
+                localStorage.setItem('backups', JSON.stringify(backups));
+                renderBackupList();
+                calculateStorageUsage();
+            }
+        }
+
+        function exportData() {
+            const exportData = {
+                menu: menu,
+                staffList: staffList,
+                orders: orders,
+                kitchenOrders: kitchenOrders,
+                tables: tables,
+                exportDate: new Date().toISOString(),
+                year: new Date().getFullYear()
+            };
+
+            const json = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `gokul_backup_${new Date().getFullYear()}.json`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function downloadBackup() {
+            exportData();
+        }
+
+        function restoreBackup() {
+            const file = document.getElementById('backupFile').files[0];
+            if (!file) {
+                alert('Select a backup file');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    menu = data.menu || menu;
+                    staffList = data.staffList || staffList;
+                    orders = data.orders || orders;
+                    kitchenOrders = data.kitchenOrders || kitchenOrders;
+                    tables = data.tables || tables;
+
+                    saveData();
+                    renderMenuList();
+                    alert('✓ Backup restored!');
+                    document.getElementById('backupFile').value = '';
+                } catch (err) {
+                    alert('Invalid backup file');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ===== TABLE MANAGEMENT =====
+        function updateTableCount() {
+            const newCount = parseInt(document.getElementById('tableCountInput').value);
+            if (newCount < 1 || newCount > 100) {
+                alert('Enter 1-100');
+                return;
+            }
+            
+            numTables = newCount;
+            localStorage.setItem('numTables', numTables);
+            
+            tables = [];
+            for (let i = 1; i <= numTables; i++) {
+                tables.push({ id: i, status: 'empty', orderId: null, staffName: null, readyBatches: 0, totalBatches: 0 });
+            }
+            localStorage.setItem('tables', JSON.stringify(tables));
+            
+            document.getElementById('currentTableCount').textContent = numTables;
+            document.getElementById('tableCountDisplay').textContent = numTables;
+            
+            renderTables();
+            alert(`✓ ${numTables} tables!`);
+        }
+
+        // ===== STAFF INTERFACE =====
+        function initStaffInterface() {
+            document.getElementById('tableCountDisplay').textContent = numTables;
+            renderTables();
+            updateStaffStats();
+            updateStaffNotifications();
+        }
+
+        function updateStaffNotifications() {
+            const readyBatches = kitchenOrders.filter(ko => ko.status === 'ready' && ko.staffName === currentStaff);
+            const container = document.getElementById('readyOrdersNotification');
+            
+            if (readyBatches.length === 0) {
+                container.style.display = 'none';
+            } else {
+                container.style.display = 'block';
+                container.innerHTML = `
+                    <div class="section" style="background: #fff3cd; border-left: 4px solid var(--color-warning);">
+                        <h2 style="color: var(--color-warning); margin: 0 0 var(--space-12) 0;">🔔 Ready Orders!</h2>
+                        ${readyBatches.map(ko => `
+                            <div style="background: white; padding: 12px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                                <span>Table ${ko.tableId} - Batch #${ko.batchId}</span>
+                                <button class="btn btn-success" onclick="acknowledgeReady(${ko.orderId}, ${ko.batchId})" style="padding: 6px 12px; font-size: 12px;">Collect</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+        }
+
+        function acknowledgeReady(orderId, batchId) {
+            const ko = kitchenOrders.find(k => k.orderId === orderId && k.batchId === batchId);
+            if (ko) {
+                ko.status = 'collected';
+                saveData();
+                updateStaffNotifications();
+                renderTables();
+            }
+        }
+
+        function renderTables() {
+            const grid = document.getElementById('tablesGrid');
+            const staffTables = tables.filter(t => !t.staffName || t.staffName === currentStaff || t.status === 'empty');
+            
+            grid.innerHTML = staffTables.map(table => {
+                let statusText = 'EMPTY';
+                let statusClass = 'empty';
+                let orderDisplay = '';
+                let badge = '';
+                let staffBadge = '';
+
+                if (table.status === 'occupied') {
+                    statusText = 'OCCUPIED';
+                    statusClass = 'occupied';
+                    const order = orders.find(o => o.id === table.orderId);
+                    if (order) {
+                        const batches = kitchenOrders.filter(ko => ko.orderId === table.orderId && ko.staffName === currentStaff);
+                        const readyCount = batches.filter(b => b.status === 'ready').length;
+                        if (readyCount > 0) {
+                            badge = `<div class="table-badge">${readyCount}</div>`;
+                        }
+                        orderDisplay = `<div style="font-size: 12px; color: var(--color-primary);">ORD-${order.id}</div>`;
+                    }
+                    if (table.staffName) {
+                        staffBadge = `<div class="table-staff-badge">👤 ${table.staffName}</div>`;
+                    }
+                } else if (table.status === 'waiting') {
+                    statusText = 'WAITING';
+                    statusClass = 'occupied';
+                }
+
+                return `
+                    <div class="table-card ${statusClass}" onclick="openTable(${table.id})">
+                        ${badge}
+                        <div class="table-number">${table.id}</div>
+                        ${staffBadge}
+                        <div class="table-status ${statusClass}">${statusText}</div>
+                        ${orderDisplay}
+                        <div class="table-actions">
+                            <button class="btn btn-primary">Open</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openTable(tableId) {
+            selectedTable = tableId;
+            const table = tables.find(t => t.id === tableId);
+
+            if (table.status === 'empty') {
+                const newOrderId = ++orderCounter;
+                const newOrder = {
+                    id: newOrderId,
+                    tableId: tableId,
+                    staff: currentStaff,
+                    items: [],
+                    status: 'pending',
+                    batches: []
+                };
+                orders.push(newOrder);
+                table.status = 'occupied';
+                table.orderId = newOrderId;
+                table.staffName = currentStaff;
+                currentOrderItems = [];
+            } else {
+                const order = orders.find(o => o.id === table.orderId);
+                if (order) {
+                    currentOrderItems = [];
+                }
+            }
+
+            document.getElementById('modalOrderId').textContent = table.orderId;
+            document.getElementById('modalTableNo').textContent = tableId;
+            document.getElementById('modalStaffName').textContent = currentStaff;
+            openOrderModal();
+            renderSentBatches();
+            renderCurrentOrderItems();
+            renderCategoryMenu();
+        }
+
+        function renderCategoryMenu() {
+            const categories = [...new Set(menu.map(item => item.category))];
+            const container = document.getElementById('categoryMenuGrid');
+            
+            container.innerHTML = categories.map(cat => {
+                const items = menu.filter(m => m.category === cat);
+                return `
+                    <div class="menu-category">
+                        <div class="menu-category-title">${cat}</div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px;">
+                            ${items.map((item, idx) => {
+                                const selected = currentOrderItems.find(i => i.name === item.name);
+                                const globalIdx = menu.indexOf(item);
+                                return `
+                                    <button class="menu-btn ${selected ? 'selected' : ''}" onclick="addItemToOrder(${globalIdx})">
+                                        ${item.name}<br><small>₹${item.price}</small>
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderSentBatches() {
+            const orderId = parseInt(document.getElementById('modalOrderId').textContent);
+            const batches = kitchenOrders.filter(ko => ko.orderId === orderId);
+            const container = document.getElementById('sentBatches');
+            
+            if (batches.length === 0) {
+                container.innerHTML = '';
+            } else {
+                container.innerHTML = `<h3 style="margin-bottom: var(--space-12); font-size: 14px; color: var(--color-primary);">Sent Batches</h3>` + batches.map(batch => {
+                    const statusColor = batch.status === 'ready' ? 'ready' : 'pending';
+                    const statusText = batch.status === 'ready' ? '✓ READY' : batch.status === 'collected' ? '✓ COLLECTED' : '⏳ PENDING';
+                    return `
+                        <div class="batch-section" style="border-left: 4px solid ${batch.status === 'ready' ? 'var(--color-success)' : 'var(--color-warning)'};">
+                            <div class="batch-header">
+                                <span>Batch #${batch.batchId}</span>
+                                <span class="batch-status ${statusColor}">${statusText}</span>
+                            </div>
+                            ${batch.items.map(item => `<div style="font-size: 12px; padding: 4px 0;">🍲 ${item.name} ×${item.qty}</div>`).join('')}
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function openOrderModal() {
+            document.getElementById('orderModal').classList.add('active');
+        }
+
+        function closeOrderModal() {
+            document.getElementById('orderModal').classList.remove('active');
+        }
+
+        function renderCurrentOrderItems() {
+            const container = document.getElementById('currentOrderItems');
+            if (currentOrderItems.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #7f8c8d;">No items</p>';
+            } else {
+                const total = currentOrderItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+                container.innerHTML = `
+                    ${currentOrderItems.map((item) => `
+                        <div class="order-item">
+                            <span>${item.name} ×${item.qty}</span>
+                            <span>₹${item.price * item.qty}</span>
+                        </div>
+                    `).join('')}
+                    <div class="order-total">
+                        <span>BATCH TOTAL</span>
+                        <span>₹${total}</span>
+                    </div>
+                `;
+            }
+        }
+
+        function addItemToOrder(itemIdx) {
+            const item = menu[itemIdx];
+            const existing = currentOrderItems.find(i => i.name === item.name);
+            
+            if (existing) {
+                existing.qty += 1;
+            } else {
+                currentOrderItems.push({ ...item, qty: 1 });
+            }
+            
+            renderCurrentOrderItems();
+            renderCategoryMenu();
+        }
+
+        function sendToKitchen() {
+            if (currentOrderItems.length === 0) {
+                alert('Add items');
+                return;
+            }
+
+            const orderId = parseInt(document.getElementById('modalOrderId').textContent);
+            const order = orders.find(o => o.id === orderId);
+            
+            const newBatchId = ++batchCounter;
+            const kitchenOrder = {
+                orderId: orderId,
+                batchId: newBatchId,
+                staffName: currentStaff,
+                tableId: selectedTable,
+                items: JSON.parse(JSON.stringify(currentOrderItems)),
+                status: 'pending',
+                sentAt: Date.now()
+            };
+            kitchenOrders.push(kitchenOrder);
+
+            if (!order.batches) order.batches = [];
+            order.batches.push(newBatchId);
+
+            currentOrderItems.forEach(newItem => {
+                const existing = order.items.find(i => i.name === newItem.name);
+                if (existing) {
+                    existing.qty += newItem.qty;
+                } else {
+                    order.items.push({ ...newItem });
+                }
+            });
+
+            const table = tables.find(t => t.id === selectedTable);
+            table.status = 'waiting';
+
+            saveData();
+            alert(`✓ Batch #${newBatchId} sent!`);
+            currentOrderItems = [];
+            renderSentBatches();
+            renderCurrentOrderItems();
+        }
+
+        function completeOrder() {
+            const orderId = parseInt(document.getElementById('modalOrderId').textContent);
+            const order = orders.find(o => o.id === orderId);
+            
+            if (!order || order.items.length === 0) {
+                alert('Empty order');
+                return;
+            }
+
+            const total = order.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            alert(`✓ Complete - ₹${total}`);
+
+            const table = tables.find(t => t.id === selectedTable);
+            table.status = 'empty';
+            table.orderId = null;
+            table.staffName = null;
+            table.readyBatches = 0;
+            table.totalBatches = 0;
+
+            order.status = 'completed';
+            
+            kitchenOrders.filter(ko => ko.orderId === orderId).forEach(ko => {
+                ko.status = 'collected';
+            });
+
+            saveData();
+            currentOrderItems = [];
+            closeOrderModal();
+            renderTables();
+            updateStaffStats();
+            updateStaffNotifications();
+        }
+
+        function updateStaffStats() {
+            const staffOrders = orders.filter(o => o.staff === currentStaff && o.status === 'completed');
+            const totalRevenue = staffOrders.reduce((sum, o) => sum + o.items.reduce((s, i) => s + (i.price * i.qty), 0), 0);
+            const avgOrder = staffOrders.length > 0 ? totalRevenue / staffOrders.length : 0;
+
+            document.getElementById('staffOrderCount').textContent = staffOrders.length;
+            document.getElementById('staffRevenueTotal').textContent = '₹' + totalRevenue.toFixed(0);
+            document.getElementById('staffAvgOrder').textContent = '₹' + avgOrder.toFixed(0);
+        }
+
+        // ===== KITCHEN DISPLAY =====
+        function initKitchenDisplay() {
+            renderKitchenOrders();
+        }
+
+        function renderKitchenOrders() {
+            const pending = kitchenOrders.filter(ko => ko.status === 'pending');
+            const ready = kitchenOrders.filter(ko => ko.status === 'ready');
+
+            const pendingHTML = pending.length === 0 
+                ? '<p style="text-align: center; padding: 40px; grid-column: 1/-1;">No pending orders</p>'
+                : pending.map(ko => {
+                    const duration = Math.round((Date.now() - ko.sentAt) / 60000);
+                    const staffName = ko.staffName || 'Unknown';
+                    const batchId = ko.batchId || '?';
+                    const orderId = ko.orderId || '?';
+                    const tableId = ko.tableId || '?';
+                    
+                    return `
+                        <div class="kitchen-order pending">
+                            <div class="kitchen-order-header">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div class="kitchen-order-id">ORD-${orderId} | B#${batchId}</div>
+                                </div>
+                                <div style="font-size: 11px;">T${tableId} | ${duration}m</div>
+                            </div>
+                            <div class="kitchen-staff-name">👤 ${staffName}</div>
+                            <div class="kitchen-items">
+                                ${ko.items && ko.items.length > 0 ? ko.items.map(item => `<div class="kitchen-item">🍲 ${item.name} ×${item.qty}</div>`).join('') : '<div class="kitchen-item">No items</div>'}
+                            </div>
+                            <button class="btn btn-success" onclick="markReady(${orderId}, ${batchId})" style="width: 100%; margin-top: 12px;">Ready</button>
+                        </div>
+                    `;
+                }).join('');
+
+            const readyHTML = ready.length === 0
+                ? '<p style="text-align: center; padding: 40px; grid-column: 1/-1;">No ready orders</p>'
+                : ready.map(ko => {
+                    const staffName = ko.staffName || 'Unknown';
+                    const batchId = ko.batchId || '?';
+                    const orderId = ko.orderId || '?';
+                    const tableId = ko.tableId || '?';
+                    
+                    return `
+                        <div class="kitchen-order ready">
+                            <div class="kitchen-order-header">
+                                <div class="kitchen-order-id">ORD-${orderId} | B#${batchId}</div>
+                                <div style="font-size: 11px; color: var(--color-success);">T${tableId}</div>
+                            </div>
+                            <div class="kitchen-staff-name" style="background: #d4edda; color: var(--color-success);">👤 ${staffName}</div>
+                            <div class="kitchen-items">
+                                ${ko.items && ko.items.length > 0 ? ko.items.map(item => `<div class="kitchen-item">✓ ${item.name} ×${item.qty}</div>`).join('') : '<div class="kitchen-item">No items</div>'}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            document.getElementById('pendingOrders').innerHTML = pendingHTML;
+            document.getElementById('readyOrders').innerHTML = readyHTML;
+        }
+
+        function markReady(orderId, batchId) {
+            const ko = kitchenOrders.find(k => k.orderId === orderId && k.batchId === batchId);
+            if (ko) {
+                ko.status = 'ready';
+                saveData();
+                renderKitchenOrders();
+            }
+        }
+
+        function switchKitchenTab(tab) {
+            document.querySelectorAll('#kitchenInterface .tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('#kitchenInterface .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // ===== OWNER INTERFACE =====
+        function initOwnerInterface() {
+            document.getElementById('tableCountInput').value = numTables;
+            document.getElementById('currentTableCount').textContent = numTables;
+            renderMenuList();
+            renderCategories();
+            calculateStorageUsage();
+            renderBackupList();
+            renderStaffPerformance();
+            renderStaffMembers();
+            renderOrdersList();
+            updateOwnerDashboard();
+        }
+
+        function updateOwnerDashboard() {
+            const completedOrders = orders.filter(o => o.status === 'completed');
+            const totalRevenue = completedOrders.reduce((sum, o) => sum + o.items.reduce((s, i) => s + (i.price * i.qty), 0), 0);
+            const activeTables = tables.filter(t => t.status !== 'empty').length;
+
+            document.getElementById('totalRevenueDisplay').textContent = totalRevenue.toFixed(0);
+            document.getElementById('totalOrdersDisplay').textContent = completedOrders.length;
+            document.getElementById('activeTablesDisplay').textContent = activeTables;
+        }
+
+        function renderStaffPerformance() {
+            const staffStats = {};
+            orders.filter(o => o.status === 'completed').forEach(order => {
+                if (!staffStats[order.staff]) {
+                    staffStats[order.staff] = { orders: 0, revenue: 0 };
+                }
+                staffStats[order.staff].orders += 1;
+                staffStats[order.staff].revenue += order.items.reduce((sum, i) => sum + (i.price * i.qty), 0);
+            });
+
+            const staff = Object.entries(staffStats).sort((a, b) => b[1].revenue - a[1].revenue);
+            const totalRevenue = staff.reduce((sum, [, stats]) => sum + stats.revenue, 0);
+
+            const tbody = document.getElementById('staffPerfList');
+            tbody.innerHTML = staff.length === 0
+                ? '<tr><td colspan="5">No data</td></tr>'
+                : staff.map(([name, stats]) => {
+                    const percentage = totalRevenue > 0 ? ((stats.revenue / totalRevenue) * 100).toFixed(0) : 0;
+                    return `
+                        <tr>
+                            <td>${name}</td>
+                            <td>${stats.orders}</td>
+                            <td>₹${stats.revenue}</td>
+                            <td>₹${(stats.revenue / stats.orders).toFixed(0)}</td>
+                            <td>${percentage}%</td>
+                        </tr>
+                    `;
+                }).join('');
+        }
+
+        function renderStaffMembers() {
+            const container = document.getElementById('staffMembersList');
+            container.innerHTML = staffList.map(staff => `
+                <div class="staff-item">
+                    <span>${staff}</span>
+                    <button class="btn btn-danger" onclick="removeStaff('${staff}')" style="padding: 4px 10px; font-size: 11px;">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        function addNewStaff() {
+            const name = document.getElementById('newStaffName').value.trim();
+            if (!name) {
+                alert('Enter name');
+                return;
+            }
+            if (staffList.includes(name)) {
+                alert('Already exists');
+                return;
+            }
+            staffList.push(name);
+            localStorage.setItem('staffList', JSON.stringify(staffList));
+            document.getElementById('newStaffName').value = '';
+            renderStaffMembers();
+            alert(`✓ Added`);
+        }
+
+        function removeStaff(name) {
+            if (confirm(`Remove ${name}?`)) {
+                staffList = staffList.filter(s => s !== name);
+                localStorage.setItem('staffList', JSON.stringify(staffList));
+                renderStaffMembers();
+            }
+        }
+
+        function renderOrdersList() {
+            const tbody = document.getElementById('ordersListTable');
+            tbody.innerHTML = orders.length === 0
+                ? '<tr><td colspan="6">No orders</td></tr>'
+                : orders.map(order => {
+                    const total = order.items.reduce((sum, i) => sum + (i.price * i.qty), 0);
+                    const batchCount = order.batches ? order.batches.length : 0;
+                    return `
+                        <tr>
+                            <td>ORD-${order.id}</td>
+                            <td>${order.staff}</td>
+                            <td>${order.tableId}</td>
+                            <td>${batchCount}</td>
+                            <td>₹${total}</td>
+                            <td>${order.status === 'completed' ? '✓' : '⏳'}</td>
+                        </tr>
+                    `;
+                }).join('');
+        }
+
+        function switchOwnerTab(tab) {
+            document.querySelectorAll('#ownerInterface .tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('#ownerInterface .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // ===== UTILITY =====
+        function saveData() {
+            localStorage.setItem('orders', JSON.stringify(orders));
+            localStorage.setItem('kitchenOrders', JSON.stringify(kitchenOrders));
+            localStorage.setItem('tables', JSON.stringify(tables));
+            localStorage.setItem('orderCounter', orderCounter);
+            localStorage.setItem('batchCounter', batchCounter);
+            localStorage.setItem('staffList', JSON.stringify(staffList));
+            localStorage.setItem('menu', JSON.stringify(menu));
+            localStorage.setItem('numTables', numTables);
+            calculateStorageUsage();
+        }
+
+        window.addEventListener('beforeunload', saveData);
+
+        function checkLogin() {
+            if (localStorage.getItem('currentRole')) {
+                currentRole = localStorage.getItem('currentRole');
+                currentStaff = localStorage.getItem('currentStaff') || null;
+                numTables = parseInt(localStorage.getItem('numTables')) || 4;
+                batchCounter = parseInt(localStorage.getItem('batchCounter')) || 100;
+                currentMode = currentRole === 'staff' ? 'staff' : currentRole === 'kitchen' ? 'kitchen' : 'owner';
+                login();
+            }
+        }
+
+        checkLogin();
+    </script>
+</body>
+</html>
