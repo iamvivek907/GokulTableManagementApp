@@ -1617,17 +1617,28 @@
         }
 
         // ===== TABLE MANAGEMENT =====
-        function updateTableCount() {
+        async function updateTableCount() {
             const newCount = parseInt(document.getElementById('tableCountInput').value);
             if (newCount < 1 || newCount > 100) {
                 alert('Enter 1-100');
                 return;
             }
             
-            numTables = newCount;
-            localStorage.setItem('numTables', numTables);
-            
-            tables = [];
+            try {
+                await apiClient.updateSetting('num_tables', newCount.toString());
+                numTables = newCount;
+                
+                initializeTables();
+                
+                document.getElementById('currentTableCount').textContent = numTables;
+                document.getElementById('tableCountDisplay').textContent = numTables;
+                
+                renderTables();
+                alert(`✓ ${numTables} tables!`);
+            } catch (error) {
+                alert('Error updating table count: ' + error.message);
+            }
+        }
             for (let i = 1; i <= numTables; i++) {
                 tables.push({ id: i, status: 'empty', orderId: null, staffName: null, readyBatches: 0, totalBatches: 0 });
             }
@@ -1726,33 +1737,38 @@
             }).join('');
         }
 
-        function openTable(tableId) {
+        async function openTable(tableId) {
             selectedTable = tableId;
             const table = tables.find(t => t.id === tableId);
 
             if (table.status === 'empty') {
-                const newOrderId = ++orderCounter;
-                const newOrder = {
-                    id: newOrderId,
-                    tableId: tableId,
-                    staff: currentStaff,
-                    items: [],
-                    status: 'pending',
-                    batches: []
-                };
-                orders.push(newOrder);
-                table.status = 'occupied';
-                table.orderId = newOrderId;
-                table.staffName = currentStaff;
-                currentOrderItems = [];
+                try {
+                    const newOrder = await apiClient.createOrder({
+                        table_id: tableId,
+                        staff_name: currentStaff,
+                        items: [],
+                        status: 'pending'
+                    });
+                    
+                    orders.push(newOrder);
+                    table.status = 'occupied';
+                    table.orderId = newOrder.id;
+                    table.staffName = currentStaff;
+                    currentOrderItems = [];
+                    
+                    document.getElementById('modalOrderId').textContent = newOrder.id;
+                } catch (error) {
+                    alert('Error creating order: ' + error.message);
+                    return;
+                }
             } else {
                 const order = orders.find(o => o.id === table.orderId);
                 if (order) {
                     currentOrderItems = [];
+                    document.getElementById('modalOrderId').textContent = table.orderId;
                 }
             }
 
-            document.getElementById('modalOrderId').textContent = table.orderId;
             document.getElementById('modalTableNo').textContent = tableId;
             document.getElementById('modalStaffName').textContent = currentStaff;
             openOrderModal();
@@ -1853,50 +1869,42 @@
             renderCategoryMenu();
         }
 
-        function sendToKitchen() {
+        async function sendToKitchen() {
             if (currentOrderItems.length === 0) {
                 alert('Add items');
                 return;
             }
 
             const orderId = parseInt(document.getElementById('modalOrderId').textContent);
-            const order = orders.find(o => o.id === orderId);
             
             const newBatchId = ++batchCounter;
-            const kitchenOrder = {
-                orderId: orderId,
-                batchId: newBatchId,
-                staffName: currentStaff,
-                tableId: selectedTable,
-                items: JSON.parse(JSON.stringify(currentOrderItems)),
-                status: 'pending',
-                sentAt: Date.now()
+            const kitchenOrderData = {
+                order_id: orderId,
+                batch_id: newBatchId,
+                staff_name: currentStaff,
+                table_id: selectedTable,
+                items: currentOrderItems.map(item => ({
+                    name: item.name,
+                    qty: item.qty || item.quantity,
+                    price: item.price
+                })),
+                status: 'pending'
             };
-            kitchenOrders.push(kitchenOrder);
 
-            if (!order.batches) order.batches = [];
-            order.batches.push(newBatchId);
+            try {
+                const createdOrder = await apiClient.createKitchenOrder(kitchenOrderData);
+                kitchenOrders.push(createdOrder);
 
-            currentOrderItems.forEach(newItem => {
-                const existing = order.items.find(i => i.name === newItem.name);
-                if (existing) {
-                    existing.qty += newItem.qty;
-                } else {
-                    order.items.push({ ...newItem });
-                }
-            });
-
-            const table = tables.find(t => t.id === selectedTable);
-            table.status = 'waiting';
-
-            saveData();
-            alert(`✓ Batch #${newBatchId} sent!`);
-            currentOrderItems = [];
-            renderSentBatches();
-            renderCurrentOrderItems();
+                alert(`✓ Batch #${newBatchId} sent!`);
+                currentOrderItems = [];
+                renderSentBatches();
+                renderCurrentOrderItems();
+            } catch (error) {
+                alert('Error sending to kitchen: ' + error.message);
+            }
         }
 
-        function completeOrder() {
+        async function completeOrder() {
             const orderId = parseInt(document.getElementById('modalOrderId').textContent);
             const order = orders.find(o => o.id === orderId);
             
@@ -1905,28 +1913,86 @@
                 return;
             }
 
-            const total = order.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
-            alert(`✓ Complete - ₹${total}`);
-
-            const table = tables.find(t => t.id === selectedTable);
-            table.status = 'empty';
-            table.orderId = null;
-            table.staffName = null;
-            table.readyBatches = 0;
-            table.totalBatches = 0;
-
-            order.status = 'completed';
+            const total = order.items.reduce((sum, item) => sum + ((item.price * (item.qty || item.quantity))), 0);
             
-            kitchenOrders.filter(ko => ko.orderId === orderId).forEach(ko => {
-                ko.status = 'collected';
-            });
+            // Generate and print bill
+            try {
+                const taxRate = parseFloat(settings.tax_rate || 0);
+                const subtotal = total;
+                const tax = (subtotal * taxRate) / 100;
+                const billTotal = subtotal + tax;
 
-            saveData();
-            currentOrderItems = [];
-            closeOrderModal();
-            renderTables();
-            updateStaffStats();
-            updateStaffNotifications();
+                const billData = {
+                    order_id: orderId,
+                    table_id: selectedTable,
+                    staff_name: currentStaff,
+                    items: order.items.map(item => ({
+                        name: item.name || item.item_name,
+                        qty: item.qty || item.quantity,
+                        price: item.price
+                    })),
+                    subtotal: subtotal,
+                    tax: tax,
+                    total: billTotal
+                };
+
+                const bill = await apiClient.createBill(billData);
+                
+                // Update order status
+                await apiClient.updateOrder(orderId, { 
+                    status: 'completed',
+                    completed_at: new Date().toISOString()
+                });
+
+                // Print bill
+                if (confirm(`Bill Total: ₹${billTotal.toFixed(2)}\n\nPrint bill now?`)) {
+                    await printBill(bill);
+                }
+
+                // Update local state
+                order.status = 'completed';
+                const table = tables.find(t => t.id === selectedTable);
+                if (table) {
+                    table.status = 'empty';
+                    table.orderId = null;
+                    table.staffName = null;
+                }
+
+                currentOrderItems = [];
+                closeOrderModal();
+                renderTables();
+                updateStaffStats();
+                updateStaffNotifications();
+                
+                alert('✓ Order completed!');
+            } catch (error) {
+                alert('Error completing order: ' + error.message);
+            }
+        }
+
+        async function printBill(bill) {
+            try {
+                const htmlBill = billPrinter.generateHTMLBill(bill, settings);
+                
+                // Try thermal printer first
+                if ('serial' in navigator) {
+                    if (confirm('Connect thermal printer?')) {
+                        try {
+                            const commands = billPrinter.generateBillCommands(bill, settings);
+                            await billPrinter.printToThermalPrinter(commands);
+                            return;
+                        } catch (error) {
+                            console.error('Thermal print failed:', error);
+                        }
+                    }
+                }
+                
+                // Fallback to browser print
+                billPrinter.printToBrowser(htmlBill);
+            } catch (error) {
+                console.error('Error printing bill:', error);
+                alert('Error printing bill: ' + error.message);
+            }
         }
 
         function updateStaffStats() {
@@ -2000,12 +2066,19 @@
             document.getElementById('readyOrders').innerHTML = readyHTML;
         }
 
-        function markReady(orderId, batchId) {
-            const ko = kitchenOrders.find(k => k.orderId === orderId && k.batchId === batchId);
+        async function markReady(orderId, batchId) {
+            const ko = kitchenOrders.find(k => k.order_id === orderId && k.batch_id === batchId);
             if (ko) {
-                ko.status = 'ready';
-                saveData();
-                renderKitchenOrders();
+                try {
+                    await apiClient.updateKitchenOrder(ko.id, { 
+                        status: 'ready',
+                        ready_at: new Date().toISOString()
+                    });
+                    ko.status = 'ready';
+                    renderKitchenOrders();
+                } catch (error) {
+                    alert('Error marking order ready: ' + error.message);
+                }
             }
         }
 
@@ -2080,7 +2153,7 @@
             `).join('');
         }
 
-        function addNewStaff() {
+        async function addNewStaff() {
             const name = document.getElementById('newStaffName').value.trim();
             if (!name) {
                 alert('Enter name');
@@ -2090,18 +2163,30 @@
                 alert('Already exists');
                 return;
             }
-            staffList.push(name);
-            localStorage.setItem('staffList', JSON.stringify(staffList));
-            document.getElementById('newStaffName').value = '';
-            renderStaffMembers();
-            alert(`✓ Added`);
+            
+            try {
+                await apiClient.addStaff(name);
+                staffList.push(name);
+                document.getElementById('newStaffName').value = '';
+                renderStaffMembers();
+                alert(`✓ Added`);
+            } catch (error) {
+                alert('Error adding staff: ' + error.message);
+            }
         }
 
-        function removeStaff(name) {
+        async function removeStaff(name) {
             if (confirm(`Remove ${name}?`)) {
-                staffList = staffList.filter(s => s !== name);
-                localStorage.setItem('staffList', JSON.stringify(staffList));
-                renderStaffMembers();
+                try {
+                    const staff = (await apiClient.getStaff()).find(s => s.name === name);
+                    if (staff) {
+                        await apiClient.deleteStaff(staff.id);
+                        staffList = staffList.filter(s => s !== name);
+                        renderStaffMembers();
+                    }
+                } catch (error) {
+                    alert('Error removing staff: ' + error.message);
+                }
             }
         }
 
@@ -2110,15 +2195,15 @@
             tbody.innerHTML = orders.length === 0
                 ? '<tr><td colspan="6">No orders</td></tr>'
                 : orders.map(order => {
-                    const total = order.items.reduce((sum, i) => sum + (i.price * i.qty), 0);
-                    const batchCount = order.batches ? order.batches.length : 0;
+                    const total = order.total || order.items.reduce((sum, i) => sum + ((i.price || 0) * (i.qty || i.quantity || 0)), 0);
+                    const batchCount = kitchenOrders.filter(ko => ko.order_id === order.id).length;
                     return `
                         <tr>
                             <td>ORD-${order.id}</td>
-                            <td>${order.staff}</td>
-                            <td>${order.tableId}</td>
+                            <td>${order.staff_name || order.staff}</td>
+                            <td>${order.table_id || order.tableId}</td>
                             <td>${batchCount}</td>
-                            <td>₹${total}</td>
+                            <td>₹${total.toFixed(2)}</td>
                             <td>${order.status === 'completed' ? '✓' : '⏳'}</td>
                         </tr>
                     `;
@@ -2132,10 +2217,143 @@
             event.target.classList.add('active');
         }
 
+        // Bills Modal Functions
+        async function openBillsModal() {
+            document.getElementById('billsModal').classList.add('active');
+            await loadBills();
+        }
+
+        function closeBillsModal() {
+            document.getElementById('billsModal').classList.remove('active');
+        }
+
+        async function loadBills(searchTerm = '') {
+            try {
+                const params = searchTerm ? { search: searchTerm } : {};
+                const bills = await apiClient.getBills(params);
+                renderBillsList(bills);
+            } catch (error) {
+                console.error('Error loading bills:', error);
+                document.getElementById('billsList').innerHTML = '<p style="text-align: center; padding: 40px; color: var(--color-danger);">Error loading bills</p>';
+            }
+        }
+
+        function renderBillsList(bills) {
+            const container = document.getElementById('billsList');
+            if (bills.length === 0) {
+                container.innerHTML = '<p style="text-align: center; padding: 40px; color: #7f8c8d;">No bills found</p>';
+                return;
+            }
+
+            container.innerHTML = bills.map(bill => `
+                <div style="background: white; border: 1px solid var(--color-border); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong style="color: var(--color-primary);">${bill.bill_number}</strong>
+                        <span style="font-size: 12px; color: #7f8c8d;">${new Date(bill.created_at).toLocaleString()}</span>
+                    </div>
+                    <div style="font-size: 13px; margin-bottom: 8px;">
+                        <div>Table: ${bill.table_id} | Staff: ${bill.staff_name}</div>
+                        <div style="margin-top: 4px;"><strong>Total: ₹${bill.total.toFixed(2)}</strong></div>
+                    </div>
+                    <button class="btn btn-primary" onclick="reprintBill(${bill.id})" style="padding: 6px 12px; font-size: 12px;">🖨️ Reprint</button>
+                </div>
+            `).join('');
+        }
+
+        async function reprintBill(billId) {
+            try {
+                const bill = await apiClient.getBill(billId);
+                await printBill(bill);
+            } catch (error) {
+                alert('Error reprinting bill: ' + error.message);
+            }
+        }
+
+        async function searchBills() {
+            const searchTerm = document.getElementById('billSearchInput').value.trim();
+            await loadBills(searchTerm);
+        }
+
+        // Analytics Modal Functions
+        async function openAnalyticsModal() {
+            document.getElementById('analyticsModal').classList.add('active');
+            await loadAnalytics();
+        }
+
+        function closeAnalyticsModal() {
+            document.getElementById('analyticsModal').classList.remove('active');
+        }
+
+        async function loadAnalytics() {
+            try {
+                // Load popular items
+                const popularItems = await apiClient.getPopularItems();
+                renderPopularItems(popularItems);
+
+                // Load sales trends
+                const dailySales = await apiClient.getDailySales(30);
+                renderSalesTrends(dailySales);
+
+                // Load hourly sales
+                const hourlySales = await apiClient.getHourlySales();
+                renderHourlySales(hourlySales);
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+            }
+        }
+
+        function renderPopularItems(items) {
+            const tbody = document.getElementById('popularItemsList');
+            tbody.innerHTML = items.length === 0
+                ? '<tr><td colspan="4" style="text-align: center;">No data</td></tr>'
+                : items.map(item => `
+                    <tr>
+                        <td>${item.item_name}</td>
+                        <td>${item.total_quantity}</td>
+                        <td>${item.order_count}</td>
+                        <td>₹${item.total_revenue.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+        }
+
+        function renderSalesTrends(sales) {
+            const tbody = document.getElementById('salesTrendList');
+            tbody.innerHTML = sales.length === 0
+                ? '<tr><td colspan="3" style="text-align: center;">No data</td></tr>'
+                : sales.map(sale => `
+                    <tr>
+                        <td>${new Date(sale.date).toLocaleDateString()}</td>
+                        <td>${sale.order_count}</td>
+                        <td>₹${sale.total_revenue.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+        }
+
+        function renderHourlySales(sales) {
+            const tbody = document.getElementById('hourlySalesList');
+            tbody.innerHTML = sales.length === 0
+                ? '<tr><td colspan="3" style="text-align: center;">No data</td></tr>'
+                : sales.map(sale => `
+                    <tr>
+                        <td>${sale.hour}:00</td>
+                        <td>${sale.order_count}</td>
+                        <td>₹${sale.total_revenue.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+        }
+
+        function switchAnalyticsTab(tab) {
+            document.querySelectorAll('#analyticsModal .tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('#analyticsModal .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
         // ===== UTILITY =====
         function saveData() {
-            localStorage.setItem('orders', JSON.stringify(orders));
-            localStorage.setItem('kitchenOrders', JSON.stringify(kitchenOrders));
+            // No longer needed - data is saved via API
+            // Kept for compatibility
+        }
             localStorage.setItem('tables', JSON.stringify(tables));
             localStorage.setItem('orderCounter', orderCounter);
             localStorage.setItem('batchCounter', batchCounter);
@@ -2147,17 +2365,16 @@
 
         window.addEventListener('beforeunload', saveData);
 
-        function checkLogin() {
-            if (localStorage.getItem('currentRole')) {
-                currentRole = localStorage.getItem('currentRole');
-                currentStaff = localStorage.getItem('currentStaff') || null;
-                numTables = parseInt(localStorage.getItem('numTables')) || 4;
-                batchCounter = parseInt(localStorage.getItem('batchCounter')) || 100;
+        async function checkLogin() {
+            if (sessionStorage.getItem('currentRole')) {
+                currentRole = sessionStorage.getItem('currentRole');
+                currentStaff = sessionStorage.getItem('currentStaff') || null;
                 currentMode = currentRole === 'staff' ? 'staff' : currentRole === 'kitchen' ? 'kitchen' : 'owner';
-                login();
+                await login();
             }
         }
 
+        // Initialize on page load
         checkLogin();
     </script>
 </body>
