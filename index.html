@@ -1660,7 +1660,7 @@
         }
 
         function updateStaffNotifications() {
-            const readyBatches = kitchenOrders.filter(ko => ko.status === 'ready' && ko.staffName === currentStaff);
+            const readyBatches = kitchenOrders.filter(ko => ko.status === 'ready' && (ko.staff_name || ko.staffName) === currentStaff);
             const container = document.getElementById('readyOrdersNotification');
             
             if (readyBatches.length === 0) {
@@ -1670,24 +1670,32 @@
                 container.innerHTML = `
                     <div class="section" style="background: #fff3cd; border-left: 4px solid var(--color-warning);">
                         <h2 style="color: var(--color-warning); margin: 0 0 var(--space-12) 0;">🔔 Ready Orders!</h2>
-                        ${readyBatches.map(ko => `
+                        ${readyBatches.map(ko => {
+                            const tableId = ko.table_id || ko.tableId;
+                            const batchId = ko.batch_id || ko.batchId;
+                            const orderId = ko.order_id || ko.orderId;
+                            return `
                             <div style="background: white; padding: 12px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                                <span>Table ${ko.tableId} - Batch #${ko.batchId}</span>
-                                <button class="btn btn-success" onclick="acknowledgeReady(${ko.orderId}, ${ko.batchId})" style="padding: 6px 12px; font-size: 12px;">Collect</button>
+                                <span>Table ${tableId} - Batch #${batchId}</span>
+                                <button class="btn btn-success" onclick="acknowledgeReady(${orderId}, ${batchId})" style="padding: 6px 12px; font-size: 12px;">Collect</button>
                             </div>
-                        `).join('')}
+                        `}).join('')}
                     </div>
                 `;
             }
         }
 
-        function acknowledgeReady(orderId, batchId) {
-            const ko = kitchenOrders.find(k => k.orderId === orderId && k.batchId === batchId);
+        async function acknowledgeReady(orderId, batchId) {
+            const ko = kitchenOrders.find(k => (k.order_id || k.orderId) === orderId && (k.batch_id || k.batchId) === batchId);
             if (ko) {
-                ko.status = 'collected';
-                saveData();
-                updateStaffNotifications();
-                renderTables();
+                try {
+                    await apiClient.updateKitchenOrder(ko.id, { status: 'collected' });
+                    ko.status = 'collected';
+                    updateStaffNotifications();
+                    renderTables();
+                } catch (error) {
+                    console.error('Error acknowledging ready order:', error);
+                }
             }
         }
 
@@ -1804,7 +1812,7 @@
 
         function renderSentBatches() {
             const orderId = parseInt(document.getElementById('modalOrderId').textContent);
-            const batches = kitchenOrders.filter(ko => ko.orderId === orderId);
+            const batches = kitchenOrders.filter(ko => (ko.order_id || ko.orderId) === orderId);
             const container = document.getElementById('sentBatches');
             
             if (batches.length === 0) {
@@ -1813,13 +1821,14 @@
                 container.innerHTML = `<h3 style="margin-bottom: var(--space-12); font-size: 14px; color: var(--color-primary);">Sent Batches</h3>` + batches.map(batch => {
                     const statusColor = batch.status === 'ready' ? 'ready' : 'pending';
                     const statusText = batch.status === 'ready' ? '✓ READY' : batch.status === 'collected' ? '✓ COLLECTED' : '⏳ PENDING';
+                    const batchId = batch.batch_id || batch.batchId;
                     return `
                         <div class="batch-section" style="border-left: 4px solid ${batch.status === 'ready' ? 'var(--color-success)' : 'var(--color-warning)'};">
                             <div class="batch-header">
-                                <span>Batch #${batch.batchId}</span>
+                                <span>Batch #${batchId}</span>
                                 <span class="batch-status ${statusColor}">${statusText}</span>
                             </div>
-                            ${batch.items.map(item => `<div style="font-size: 12px; padding: 4px 0;">🍲 ${item.name} ×${item.qty}</div>`).join('')}
+                            ${batch.items.map(item => `<div style="font-size: 12px; padding: 4px 0;">🍲 ${item.name} ×${item.qty || item.quantity}</div>`).join('')}
                         </div>
                     `;
                 }).join('');
@@ -2017,11 +2026,12 @@
             const pendingHTML = pending.length === 0 
                 ? '<p style="text-align: center; padding: 40px; grid-column: 1/-1;">No pending orders</p>'
                 : pending.map(ko => {
-                    const duration = Math.round((Date.now() - ko.sentAt) / 60000);
-                    const staffName = ko.staffName || 'Unknown';
-                    const batchId = ko.batchId || '?';
-                    const orderId = ko.orderId || '?';
-                    const tableId = ko.tableId || '?';
+                    const sentAt = ko.sent_at || ko.sentAt;
+                    const duration = sentAt ? Math.round((Date.now() - new Date(sentAt).getTime()) / 60000) : 0;
+                    const staffName = ko.staff_name || ko.staffName || 'Unknown';
+                    const batchId = ko.batch_id || ko.batchId || '?';
+                    const orderId = ko.order_id || ko.orderId || '?';
+                    const tableId = ko.table_id || ko.tableId || '?';
                     
                     return `
                         <div class="kitchen-order pending">
@@ -2043,10 +2053,10 @@
             const readyHTML = ready.length === 0
                 ? '<p style="text-align: center; padding: 40px; grid-column: 1/-1;">No ready orders</p>'
                 : ready.map(ko => {
-                    const staffName = ko.staffName || 'Unknown';
-                    const batchId = ko.batchId || '?';
-                    const orderId = ko.orderId || '?';
-                    const tableId = ko.tableId || '?';
+                    const staffName = ko.staff_name || ko.staffName || 'Unknown';
+                    const batchId = ko.batch_id || ko.batchId || '?';
+                    const orderId = ko.order_id || ko.orderId || '?';
+                    const tableId = ko.table_id || ko.tableId || '?';
                     
                     return `
                         <div class="kitchen-order ready">
@@ -2056,7 +2066,7 @@
                             </div>
                             <div class="kitchen-staff-name" style="background: #d4edda; color: var(--color-success);">👤 ${staffName}</div>
                             <div class="kitchen-items">
-                                ${ko.items && ko.items.length > 0 ? ko.items.map(item => `<div class="kitchen-item">✓ ${item.name} ×${item.qty}</div>`).join('') : '<div class="kitchen-item">No items</div>'}
+                                ${ko.items && ko.items.length > 0 ? ko.items.map(item => `<div class="kitchen-item">✓ ${item.name} ×${item.qty || item.quantity}</div>`).join('') : '<div class="kitchen-item">No items</div>'}
                             </div>
                         </div>
                     `;
@@ -2113,13 +2123,35 @@
             document.getElementById('activeTablesDisplay').textContent = activeTables;
         }
 
-        function renderStaffPerformance() {
-            const staffStats = {};
-            orders.filter(o => o.status === 'completed').forEach(order => {
-                if (!staffStats[order.staff]) {
-                    staffStats[order.staff] = { orders: 0, revenue: 0 };
+        async function renderStaffPerformance() {
+            try {
+                const performance = await apiClient.getStaffPerformance();
+                const tbody = document.getElementById('staffPerfList');
+                
+                if (performance.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5">No data</td></tr>';
+                    return;
                 }
-                staffStats[order.staff].orders += 1;
+
+                const totalRevenue = performance.reduce((sum, p) => sum + p.total_revenue, 0);
+                
+                tbody.innerHTML = performance.map(perf => {
+                    const percentage = totalRevenue > 0 ? ((perf.total_revenue / totalRevenue) * 100).toFixed(0) : 0;
+                    return `
+                        <tr>
+                            <td>${perf.staff_name}</td>
+                            <td>${perf.order_count}</td>
+                            <td>₹${perf.total_revenue.toFixed(2)}</td>
+                            <td>₹${perf.avg_order_value.toFixed(2)}</td>
+                            <td>${percentage}%</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error rendering staff performance:', error);
+                document.getElementById('staffPerfList').innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--color-danger);">Error loading data</td></tr>';
+            }
+        }
                 staffStats[order.staff].revenue += order.items.reduce((sum, i) => sum + (i.price * i.qty), 0);
             });
 
