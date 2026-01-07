@@ -3,6 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete restaurant management system with real-time updates">
+    <meta name="theme-color" content="#208091">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Gokul Restaurant">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
     <title>Gokul Restaurant - Complete Management System</title>
     <style>
         :root {
@@ -755,7 +763,9 @@
                         <button class="tab-btn" onclick="switchOwnerTab('backup')">💾 Backup</button>
                         <button class="tab-btn" onclick="switchOwnerTab('staffPerf')">📊 Staff</button>
                         <button class="tab-btn" onclick="switchOwnerTab('manageStaff')">👥 Manage</button>
-                        <button class="tab-btn" onclick="switchOwnerTab('orders')">Orders</button>
+                        <button class="tab-btn" onclick="switchOwnerTab('orders')">📦 Orders</button>
+                        <button class="tab-btn" onclick="openBillsModal()">📄 Bills</button>
+                        <button class="tab-btn" onclick="openAnalyticsModal()">📈 Analytics</button>
                     </div>
 
                     <!-- CONFIGURATION TAB -->
@@ -963,13 +973,153 @@
 
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <button class="btn btn-primary" onclick="sendToKitchen()" style="flex: 1;">🖨️ Send</button>
-                <button class="btn btn-success" onclick="completeOrder()" style="flex: 1;">✓ Complete</button>
+                <button class="btn btn-success" onclick="completeOrder()" style="flex: 1;">✓ Complete & Print</button>
                 <button class="btn btn-danger" onclick="closeOrderModal()" style="flex: 1;">Cancel</button>
             </div>
         </div>
     </div>
 
+    <!-- Bills Modal -->
+    <div id="billsModal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-16);">
+                <div class="modal-header" style="margin-bottom: 0;">📄 Bills History</div>
+                <span class="close-modal" onclick="closeBillsModal()">&times;</span>
+            </div>
+
+            <div style="margin-bottom: var(--space-16);">
+                <input type="text" id="billSearchInput" placeholder="Search by bill number or staff name..." style="width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px; font-size: 14px;" oninput="searchBills()">
+            </div>
+
+            <div id="billsList" style="max-height: 400px; overflow-y: auto;">
+                <p style="text-align: center; padding: 40px; color: #7f8c8d;">Loading bills...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Modal -->
+    <div id="analyticsModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-16);">
+                <div class="modal-header" style="margin-bottom: 0;">📊 Advanced Analytics</div>
+                <span class="close-modal" onclick="closeAnalyticsModal()">&times;</span>
+            </div>
+
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchAnalyticsTab('popular')">🔥 Popular Items</button>
+                <button class="tab-btn" onclick="switchAnalyticsTab('sales')">📈 Sales Trends</button>
+                <button class="tab-btn" onclick="switchAnalyticsTab('hourly')">🕒 Peak Hours</button>
+            </div>
+
+            <div id="popular" class="tab-content active">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Sold</th>
+                            <th>Orders</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody id="popularItemsList">
+                        <tr><td colspan="4" style="text-align: center;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="sales" class="tab-content">
+                <div id="salesChart" style="padding: 20px;">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Orders</th>
+                                <th>Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salesTrendList">
+                            <tr><td colspan="3" style="text-align: center;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="hourly" class="tab-content">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Hour</th>
+                            <th>Orders</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hourlySalesList">
+                        <tr><td colspan="3" style="text-align: center;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="/api-client.js"></script>
+    <script src="/bill-printer.js"></script>
     <script>
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+
+        // Initialize Bill Printer
+        const billPrinter = new BillPrinter();
+
+        // Initialize WebSocket connection
+        apiClient.initWebSocket();
+
+        // Real-time event handlers
+        apiClient.on('menu_updated', (data) => {
+            loadMenu();
+        });
+
+        apiClient.on('kitchen_order_created', (data) => {
+            if (currentMode === 'kitchen') {
+                renderKitchenOrders();
+            }
+        });
+
+        apiClient.on('kitchen_order_updated', (data) => {
+            if (currentMode === 'kitchen') {
+                renderKitchenOrders();
+            }
+            if (currentMode === 'staff') {
+                updateStaffNotifications();
+                renderTables();
+            }
+        });
+
+        apiClient.on('order_created', (data) => {
+            loadOrders();
+        });
+
+        apiClient.on('order_updated', (data) => {
+            loadOrders();
+        });
+
+        apiClient.on('settings_updated', (data) => {
+            if (data.key === 'num_tables') {
+                numTables = parseInt(data.value);
+                initializeTables();
+                renderTables();
+            }
+        });
+
         // Default Menu with Categories
         const defaultMenu = [
             { category: 'Appetizers', name: 'Samosa', price: 8 },
@@ -992,34 +1142,98 @@
         ];
 
         // Global State
-        let menu = JSON.parse(localStorage.getItem('menu')) || defaultMenu;
-        let staffList = JSON.parse(localStorage.getItem('staffList')) || ['Raj', 'Priya', 'Arjun'];
-        let orders = JSON.parse(localStorage.getItem('orders')) || [];
-        let kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrders')) || [];
-        let backups = JSON.parse(localStorage.getItem('backups')) || [];
-        let numTables = parseInt(localStorage.getItem('numTables')) || 4;
+        let menu = [];
+        let staffList = [];
+        let orders = [];
+        let kitchenOrders = [];
+        let backups = [];
+        let numTables = 4;
         let tables = [];
+        let settings = {};
 
-        let currentRole = localStorage.getItem('currentRole') || null;
-        let currentStaff = localStorage.getItem('currentStaff') || null;
+        let currentRole = sessionStorage.getItem('currentRole') || null;
+        let currentStaff = sessionStorage.getItem('currentStaff') || null;
         let currentMode = 'staff';
-        let orderCounter = parseInt(localStorage.getItem('orderCounter')) || 1000;
-        let batchCounter = parseInt(localStorage.getItem('batchCounter')) || 100;
+        let orderCounter = 1000;
+        let batchCounter = 100;
         let selectedTable = null;
         let currentOrderItems = [];
 
-        const OWNER_PASSWORD = 'gokul2024';
+        let OWNER_PASSWORD = 'gokul2024';
+
+        // Load initial data from API
+        async function loadInitialData() {
+            try {
+                menu = await apiClient.getMenu();
+                staffList = (await apiClient.getStaff()).map(s => s.name);
+                settings = await apiClient.getSettings();
+                numTables = parseInt(settings.num_tables || 4);
+                OWNER_PASSWORD = settings.owner_password || 'gokul2024';
+            } catch (error) {
+                console.error('Error loading initial data:', error);
+                // Fallback to default menu if API fails
+                menu = defaultMenu;
+            }
+        }
+
+        async function loadOrders() {
+            try {
+                orders = await apiClient.getOrders();
+                if (orders.length > 0) {
+                    const maxId = Math.max(...orders.map(o => o.id));
+                    orderCounter = maxId + 1;
+                }
+            } catch (error) {
+                console.error('Error loading orders:', error);
+            }
+        }
+
+        async function loadKitchenOrders() {
+            try {
+                kitchenOrders = await apiClient.getKitchenOrders();
+                if (kitchenOrders.length > 0) {
+                    const maxBatchId = Math.max(...kitchenOrders.map(ko => ko.batch_id));
+                    batchCounter = maxBatchId + 1;
+                }
+            } catch (error) {
+                console.error('Error loading kitchen orders:', error);
+            }
+        }
+
+        async function loadMenu() {
+            try {
+                menu = await apiClient.getMenu();
+                if (currentMode === 'owner') {
+                    renderMenuList();
+                    renderCategories();
+                }
+            } catch (error) {
+                console.error('Error loading menu:', error);
+            }
+        }
 
         function initializeTables() {
-            const saved = JSON.parse(localStorage.getItem('tables'));
-            if (saved && saved.length === numTables) {
-                tables = saved;
-            } else {
-                tables = [];
-                for (let i = 1; i <= numTables; i++) {
-                    tables.push({ id: i, status: 'empty', orderId: null, staffName: null, readyBatches: 0, totalBatches: 0 });
-                }
+            tables = [];
+            for (let i = 1; i <= numTables; i++) {
+                tables.push({ 
+                    id: i, 
+                    status: 'empty', 
+                    orderId: null, 
+                    staffName: null, 
+                    readyBatches: 0, 
+                    totalBatches: 0 
+                });
             }
+            
+            // Update table status from active orders
+            orders.filter(o => o.status !== 'completed').forEach(order => {
+                const table = tables.find(t => t.id === order.table_id);
+                if (table) {
+                    table.status = 'occupied';
+                    table.orderId = order.id;
+                    table.staffName = order.staff_name;
+                }
+            });
         }
 
         function showStaffSelect() {
@@ -1028,7 +1242,7 @@
             document.getElementById('customStaffName').focus();
         }
 
-        function loginWithStaffName() {
+        async function loginWithStaffName() {
             let name = document.getElementById('customStaffName').value.trim();
             if (!name) {
                 alert('Enter name');
@@ -1037,16 +1251,20 @@
             
             // Add to staff list if new
             if (!staffList.includes(name)) {
-                staffList.push(name);
-                localStorage.setItem('staffList', JSON.stringify(staffList));
+                try {
+                    await apiClient.addStaff(name);
+                    staffList.push(name);
+                } catch (error) {
+                    console.error('Error adding staff:', error);
+                }
             }
             
             currentRole = 'staff';
             currentStaff = name;
             currentMode = 'staff';
-            localStorage.setItem('currentRole', currentRole);
-            localStorage.setItem('currentStaff', currentStaff);
-            login();
+            sessionStorage.setItem('currentRole', currentRole);
+            sessionStorage.setItem('currentStaff', currentStaff);
+            await login();
         }
 
         function showOwnerLogin() {
@@ -1054,21 +1272,21 @@
             document.getElementById('ownerLoginScreen').style.display = 'flex';
         }
 
-        function showKitchenDisplay() {
+        async function showKitchenDisplay() {
             document.getElementById('loginScreen').style.display = 'none';
             currentRole = 'kitchen';
             currentMode = 'kitchen';
-            localStorage.setItem('currentRole', 'kitchen');
-            login();
+            sessionStorage.setItem('currentRole', 'kitchen');
+            await login();
         }
 
-        function verifyOwnerPassword() {
+        async function verifyOwnerPassword() {
             const password = document.getElementById('ownerPassword').value;
             if (password === OWNER_PASSWORD) {
                 currentRole = 'owner';
                 currentMode = 'owner';
-                localStorage.setItem('currentRole', 'owner');
-                login();
+                sessionStorage.setItem('currentRole', 'owner');
+                await login();
             } else {
                 document.getElementById('passwordError').textContent = 'Wrong password';
                 document.getElementById('passwordError').style.display = 'block';
@@ -1082,7 +1300,12 @@
             document.getElementById('loginScreen').style.display = 'flex';
         }
 
-        function login() {
+        async function login() {
+            // Load data from API
+            await loadInitialData();
+            await loadOrders();
+            await loadKitchenOrders();
+            
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('staffSelectScreen').style.display = 'none';
             document.getElementById('ownerLoginScreen').style.display = 'none';
@@ -1116,8 +1339,8 @@
         function logout() {
             currentRole = null;
             currentStaff = null;
-            localStorage.setItem('currentRole', '');
-            localStorage.setItem('currentStaff', '');
+            sessionStorage.setItem('currentRole', '');
+            sessionStorage.setItem('currentStaff', '');
             document.getElementById('appScreen').style.display = 'none';
             document.getElementById('loginScreen').style.display = 'flex';
         }
@@ -1134,7 +1357,7 @@
             window.URL.revokeObjectURL(url);
         }
 
-        function uploadMenuCSV() {
+        async function uploadMenuCSV() {
             const file = document.getElementById('menuFile').files[0];
             if (!file) {
                 alert('Select a CSV file');
@@ -1142,7 +1365,7 @@
             }
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 const csv = e.target.result;
                 const lines = csv.split('\n');
                 const newMenu = [];
@@ -1160,12 +1383,16 @@
                 }
 
                 if (newMenu.length > 0) {
-                    menu = newMenu;
-                    saveData();
-                    renderMenuList();
-                    renderCategories();
-                    alert(`✓ ${newMenu.length} items uploaded!`);
-                    document.getElementById('menuFile').value = '';
+                    try {
+                        await apiClient.bulkUpdateMenu(newMenu);
+                        menu = newMenu;
+                        renderMenuList();
+                        renderCategories();
+                        alert(`✓ ${newMenu.length} items uploaded!`);
+                        document.getElementById('menuFile').value = '';
+                    } catch (error) {
+                        alert('Error uploading menu: ' + error.message);
+                    }
                 } else {
                     alert('No valid items found in CSV');
                 }
@@ -1173,7 +1400,7 @@
             reader.readAsText(file);
         }
 
-        function addNewMenuItem() {
+        async function addNewMenuItem() {
             const category = document.getElementById('newItemCategory').value;
             const name = document.getElementById('newItemName').value.trim();
             const price = parseFloat(document.getElementById('newItemPrice').value);
@@ -1183,35 +1410,47 @@
                 return;
             }
 
-            menu.push({ category, name, price });
-            saveData();
-            renderMenuList();
-            renderCategories();
+            try {
+                const newItem = await apiClient.addMenuItem({ category, name, price });
+                menu.push(newItem);
+                renderMenuList();
+                renderCategories();
 
-            document.getElementById('newItemName').value = '';
-            document.getElementById('newItemPrice').value = '';
-            document.getElementById('newItemCategory').value = '';
-            alert('✓ Item added');
+                document.getElementById('newItemName').value = '';
+                document.getElementById('newItemPrice').value = '';
+                document.getElementById('newItemCategory').value = '';
+                alert('✓ Item added');
+            } catch (error) {
+                alert('Error adding item: ' + error.message);
+            }
         }
 
         function renderMenuList() {
             const tbody = document.getElementById('menuItemsList');
             document.getElementById('menuItemCount').textContent = menu.length;
 
-            tbody.innerHTML = menu.map((item, idx) => `
+            tbody.innerHTML = menu.map((item) => `
                 <tr>
                     <td>${item.category}</td>
                     <td>${item.name}</td>
                     <td>₹${item.price}</td>
-                    <td><button class="btn btn-danger" onclick="removeMenuItem(${idx})" style="padding: 4px 8px; font-size: 11px;">Remove</button></td>
+                    <td><button class="btn btn-danger" onclick="removeMenuItem(${item.id})" style="padding: 4px 8px; font-size: 11px;">Remove</button></td>
                 </tr>
             `).join('');
         }
 
-        function removeMenuItem(idx) {
+        async function removeMenuItem(id) {
             if (confirm('Remove this item?')) {
-                menu.splice(idx, 1);
-                saveData();
+                try {
+                    await apiClient.deleteMenuItem(id);
+                    menu = menu.filter(item => item.id !== id);
+                    renderMenuList();
+                    renderCategories();
+                } catch (error) {
+                    alert('Error removing item: ' + error.message);
+                }
+            }
+        }
                 renderMenuList();
             }
         }

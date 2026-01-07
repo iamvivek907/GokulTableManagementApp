@@ -1,0 +1,23 @@
+{
+  "name": "gokul-restaurant-management",
+  "version": "1.0.0",
+  "description": "Multi-user restaurant management system with PWA support",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": ["restaurant", "management", "pwa", "real-time"],
+  "author": "iamvivek907",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.14.2",
+    "better-sqlite3": "^9.2.2",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
