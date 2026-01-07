@@ -3,6 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete restaurant management system with real-time updates">
+    <meta name="theme-color" content="#208091">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Gokul Restaurant">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
     <title>Gokul Restaurant - Complete Management System</title>
     <style>
         :root {
@@ -755,7 +763,9 @@
                         <button class="tab-btn" onclick="switchOwnerTab('backup')">💾 Backup</button>
                         <button class="tab-btn" onclick="switchOwnerTab('staffPerf')">📊 Staff</button>
                         <button class="tab-btn" onclick="switchOwnerTab('manageStaff')">👥 Manage</button>
-                        <button class="tab-btn" onclick="switchOwnerTab('orders')">Orders</button>
+                        <button class="tab-btn" onclick="switchOwnerTab('orders')">📦 Orders</button>
+                        <button class="tab-btn" onclick="openBillsModal()">📄 Bills</button>
+                        <button class="tab-btn" onclick="openAnalyticsModal()">📈 Analytics</button>
                     </div>
 
                     <!-- CONFIGURATION TAB -->
@@ -963,13 +973,153 @@
 
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <button class="btn btn-primary" onclick="sendToKitchen()" style="flex: 1;">🖨️ Send</button>
-                <button class="btn btn-success" onclick="completeOrder()" style="flex: 1;">✓ Complete</button>
+                <button class="btn btn-success" onclick="completeOrder()" style="flex: 1;">✓ Complete & Print</button>
                 <button class="btn btn-danger" onclick="closeOrderModal()" style="flex: 1;">Cancel</button>
             </div>
         </div>
     </div>
 
+    <!-- Bills Modal -->
+    <div id="billsModal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-16);">
+                <div class="modal-header" style="margin-bottom: 0;">📄 Bills History</div>
+                <span class="close-modal" onclick="closeBillsModal()">&times;</span>
+            </div>
+
+            <div style="margin-bottom: var(--space-16);">
+                <input type="text" id="billSearchInput" placeholder="Search by bill number or staff name..." style="width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px; font-size: 14px;" oninput="searchBills()">
+            </div>
+
+            <div id="billsList" style="max-height: 400px; overflow-y: auto;">
+                <p style="text-align: center; padding: 40px; color: #7f8c8d;">Loading bills...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Modal -->
+    <div id="analyticsModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-16);">
+                <div class="modal-header" style="margin-bottom: 0;">📊 Advanced Analytics</div>
+                <span class="close-modal" onclick="closeAnalyticsModal()">&times;</span>
+            </div>
+
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchAnalyticsTab('popular')">🔥 Popular Items</button>
+                <button class="tab-btn" onclick="switchAnalyticsTab('sales')">📈 Sales Trends</button>
+                <button class="tab-btn" onclick="switchAnalyticsTab('hourly')">🕒 Peak Hours</button>
+            </div>
+
+            <div id="popular" class="tab-content active">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Sold</th>
+                            <th>Orders</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody id="popularItemsList">
+                        <tr><td colspan="4" style="text-align: center;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="sales" class="tab-content">
+                <div id="salesChart" style="padding: 20px;">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Orders</th>
+                                <th>Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salesTrendList">
+                            <tr><td colspan="3" style="text-align: center;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="hourly" class="tab-content">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Hour</th>
+                            <th>Orders</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hourlySalesList">
+                        <tr><td colspan="3" style="text-align: center;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="/api-client.js"></script>
+    <script src="/bill-printer.js"></script>
     <script>
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+
+        // Initialize Bill Printer
+        const billPrinter = new BillPrinter();
+
+        // Initialize WebSocket connection
+        apiClient.initWebSocket();
+
+        // Real-time event handlers
+        apiClient.on('menu_updated', (data) => {
+            loadMenu();
+        });
+
+        apiClient.on('kitchen_order_created', (data) => {
+            if (currentMode === 'kitchen') {
+                renderKitchenOrders();
+            }
+        });
+
+        apiClient.on('kitchen_order_updated', (data) => {
+            if (currentMode === 'kitchen') {
+                renderKitchenOrders();
+            }
+            if (currentMode === 'staff') {
+                updateStaffNotifications();
+                renderTables();
+            }
+        });
+
+        apiClient.on('order_created', (data) => {
+            loadOrders();
+        });
+
+        apiClient.on('order_updated', (data) => {
+            loadOrders();
+        });
+
+        apiClient.on('settings_updated', (data) => {
+            if (data.key === 'num_tables') {
+                numTables = parseInt(data.value);
+                initializeTables();
+                renderTables();
+            }
+        });
+
         // Default Menu with Categories
         const defaultMenu = [
             { category: 'Appetizers', name: 'Samosa', price: 8 },
@@ -992,34 +1142,98 @@
         ];
 
         // Global State
-        let menu = JSON.parse(localStorage.getItem('menu')) || defaultMenu;
-        let staffList = JSON.parse(localStorage.getItem('staffList')) || ['Raj', 'Priya', 'Arjun'];
-        let orders = JSON.parse(localStorage.getItem('orders')) || [];
-        let kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrders')) || [];
-        let backups = JSON.parse(localStorage.getItem('backups')) || [];
-        let numTables = parseInt(localStorage.getItem('numTables')) || 4;
+        let menu = [];
+        let staffList = [];
+        let orders = [];
+        let kitchenOrders = [];
+        let backups = [];
+        let numTables = 4;
         let tables = [];
+        let settings = {};
 
-        let currentRole = localStorage.getItem('currentRole') || null;
-        let currentStaff = localStorage.getItem('currentStaff') || null;
+        let currentRole = sessionStorage.getItem('currentRole') || null;
+        let currentStaff = sessionStorage.getItem('currentStaff') || null;
         let currentMode = 'staff';
-        let orderCounter = parseInt(localStorage.getItem('orderCounter')) || 1000;
-        let batchCounter = parseInt(localStorage.getItem('batchCounter')) || 100;
+        let orderCounter = 1000;
+        let batchCounter = 100;
         let selectedTable = null;
         let currentOrderItems = [];
 
-        const OWNER_PASSWORD = 'gokul2024';
+        let OWNER_PASSWORD = 'gokul2024';
+
+        // Load initial data from API
+        async function loadInitialData() {
+            try {
+                menu = await apiClient.getMenu();
+                staffList = (await apiClient.getStaff()).map(s => s.name);
+                settings = await apiClient.getSettings();
+                numTables = parseInt(settings.num_tables || 4);
+                OWNER_PASSWORD = settings.owner_password || 'gokul2024';
+            } catch (error) {
+                console.error('Error loading initial data:', error);
+                // Fallback to default menu if API fails
+                menu = defaultMenu;
+            }
+        }
+
+        async function loadOrders() {
+            try {
+                orders = await apiClient.getOrders();
+                if (orders.length > 0) {
+                    const maxId = Math.max(...orders.map(o => o.id));
+                    orderCounter = maxId + 1;
+                }
+            } catch (error) {
+                console.error('Error loading orders:', error);
+            }
+        }
+
+        async function loadKitchenOrders() {
+            try {
+                kitchenOrders = await apiClient.getKitchenOrders();
+                if (kitchenOrders.length > 0) {
+                    const maxBatchId = Math.max(...kitchenOrders.map(ko => ko.batch_id));
+                    batchCounter = maxBatchId + 1;
+                }
+            } catch (error) {
+                console.error('Error loading kitchen orders:', error);
+            }
+        }
+
+        async function loadMenu() {
+            try {
+                menu = await apiClient.getMenu();
+                if (currentMode === 'owner') {
+                    renderMenuList();
+                    renderCategories();
+                }
+            } catch (error) {
+                console.error('Error loading menu:', error);
+            }
+        }
 
         function initializeTables() {
-            const saved = JSON.parse(localStorage.getItem('tables'));
-            if (saved && saved.length === numTables) {
-                tables = saved;
-            } else {
-                tables = [];
-                for (let i = 1; i <= numTables; i++) {
-                    tables.push({ id: i, status: 'empty', orderId: null, staffName: null, readyBatches: 0, totalBatches: 0 });
-                }
+            tables = [];
+            for (let i = 1; i <= numTables; i++) {
+                tables.push({ 
+                    id: i, 
+                    status: 'empty', 
+                    orderId: null, 
+                    staffName: null, 
+                    readyBatches: 0, 
+                    totalBatches: 0 
+                });
             }
+            
+            // Update table status from active orders
+            orders.filter(o => o.status !== 'completed').forEach(order => {
+                const table = tables.find(t => t.id === order.table_id);
+                if (table) {
+                    table.status = 'occupied';
+                    table.orderId = order.id;
+                    table.staffName = order.staff_name;
+                }
+            });
         }
 
         function showStaffSelect() {
@@ -1028,7 +1242,7 @@
             document.getElementById('customStaffName').focus();
         }
 
-        function loginWithStaffName() {
+        async function loginWithStaffName() {
             let name = document.getElementById('customStaffName').value.trim();
             if (!name) {
                 alert('Enter name');
@@ -1037,16 +1251,20 @@
             
             // Add to staff list if new
             if (!staffList.includes(name)) {
-                staffList.push(name);
-                localStorage.setItem('staffList', JSON.stringify(staffList));
+                try {
+                    await apiClient.addStaff(name);
+                    staffList.push(name);
+                } catch (error) {
+                    console.error('Error adding staff:', error);
+                }
             }
             
             currentRole = 'staff';
             currentStaff = name;
             currentMode = 'staff';
-            localStorage.setItem('currentRole', currentRole);
-            localStorage.setItem('currentStaff', currentStaff);
-            login();
+            sessionStorage.setItem('currentRole', currentRole);
+            sessionStorage.setItem('currentStaff', currentStaff);
+            await login();
         }
 
         function showOwnerLogin() {
@@ -1054,21 +1272,21 @@
             document.getElementById('ownerLoginScreen').style.display = 'flex';
         }
 
-        function showKitchenDisplay() {
+        async function showKitchenDisplay() {
             document.getElementById('loginScreen').style.display = 'none';
             currentRole = 'kitchen';
             currentMode = 'kitchen';
-            localStorage.setItem('currentRole', 'kitchen');
-            login();
+            sessionStorage.setItem('currentRole', 'kitchen');
+            await login();
         }
 
-        function verifyOwnerPassword() {
+        async function verifyOwnerPassword() {
             const password = document.getElementById('ownerPassword').value;
             if (password === OWNER_PASSWORD) {
                 currentRole = 'owner';
                 currentMode = 'owner';
-                localStorage.setItem('currentRole', 'owner');
-                login();
+                sessionStorage.setItem('currentRole', 'owner');
+                await login();
             } else {
                 document.getElementById('passwordError').textContent = 'Wrong password';
                 document.getElementById('passwordError').style.display = 'block';
@@ -1082,7 +1300,12 @@
             document.getElementById('loginScreen').style.display = 'flex';
         }
 
-        function login() {
+        async function login() {
+            // Load data from API
+            await loadInitialData();
+            await loadOrders();
+            await loadKitchenOrders();
+            
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('staffSelectScreen').style.display = 'none';
             document.getElementById('ownerLoginScreen').style.display = 'none';
@@ -1116,8 +1339,8 @@
         function logout() {
             currentRole = null;
             currentStaff = null;
-            localStorage.setItem('currentRole', '');
-            localStorage.setItem('currentStaff', '');
+            sessionStorage.setItem('currentRole', '');
+            sessionStorage.setItem('currentStaff', '');
             document.getElementById('appScreen').style.display = 'none';
             document.getElementById('loginScreen').style.display = 'flex';
         }
@@ -1134,7 +1357,7 @@
             window.URL.revokeObjectURL(url);
         }
 
-        function uploadMenuCSV() {
+        async function uploadMenuCSV() {
             const file = document.getElementById('menuFile').files[0];
             if (!file) {
                 alert('Select a CSV file');
@@ -1142,7 +1365,7 @@
             }
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 const csv = e.target.result;
                 const lines = csv.split('\n');
                 const newMenu = [];
@@ -1160,12 +1383,16 @@
                 }
 
                 if (newMenu.length > 0) {
-                    menu = newMenu;
-                    saveData();
-                    renderMenuList();
-                    renderCategories();
-                    alert(`✓ ${newMenu.length} items uploaded!`);
-                    document.getElementById('menuFile').value = '';
+                    try {
+                        await apiClient.bulkUpdateMenu(newMenu);
+                        menu = newMenu;
+                        renderMenuList();
+                        renderCategories();
+                        alert(`✓ ${newMenu.length} items uploaded!`);
+                        document.getElementById('menuFile').value = '';
+                    } catch (error) {
+                        alert('Error uploading menu: ' + error.message);
+                    }
                 } else {
                     alert('No valid items found in CSV');
                 }
@@ -1173,7 +1400,7 @@
             reader.readAsText(file);
         }
 
-        function addNewMenuItem() {
+        async function addNewMenuItem() {
             const category = document.getElementById('newItemCategory').value;
             const name = document.getElementById('newItemName').value.trim();
             const price = parseFloat(document.getElementById('newItemPrice').value);
@@ -1183,36 +1410,45 @@
                 return;
             }
 
-            menu.push({ category, name, price });
-            saveData();
-            renderMenuList();
-            renderCategories();
+            try {
+                const newItem = await apiClient.addMenuItem({ category, name, price });
+                menu.push(newItem);
+                renderMenuList();
+                renderCategories();
 
-            document.getElementById('newItemName').value = '';
-            document.getElementById('newItemPrice').value = '';
-            document.getElementById('newItemCategory').value = '';
-            alert('✓ Item added');
+                document.getElementById('newItemName').value = '';
+                document.getElementById('newItemPrice').value = '';
+                document.getElementById('newItemCategory').value = '';
+                alert('✓ Item added');
+            } catch (error) {
+                alert('Error adding item: ' + error.message);
+            }
         }
 
         function renderMenuList() {
             const tbody = document.getElementById('menuItemsList');
             document.getElementById('menuItemCount').textContent = menu.length;
 
-            tbody.innerHTML = menu.map((item, idx) => `
+            tbody.innerHTML = menu.map((item) => `
                 <tr>
                     <td>${item.category}</td>
                     <td>${item.name}</td>
                     <td>₹${item.price}</td>
-                    <td><button class="btn btn-danger" onclick="removeMenuItem(${idx})" style="padding: 4px 8px; font-size: 11px;">Remove</button></td>
+                    <td><button class="btn btn-danger" onclick="removeMenuItem(${item.id})" style="padding: 4px 8px; font-size: 11px;">Remove</button></td>
                 </tr>
             `).join('');
         }
 
-        function removeMenuItem(idx) {
+        async function removeMenuItem(id) {
             if (confirm('Remove this item?')) {
-                menu.splice(idx, 1);
-                saveData();
-                renderMenuList();
+                try {
+                    await apiClient.deleteMenuItem(id);
+                    menu = menu.filter(item => item.id !== id);
+                    renderMenuList();
+                    renderCategories();
+                } catch (error) {
+                    alert('Error removing item: ' + error.message);
+                }
             }
         }
 
@@ -1378,26 +1614,30 @@
         }
 
         // ===== TABLE MANAGEMENT =====
-        function updateTableCount() {
+        async function updateTableCount() {
             const newCount = parseInt(document.getElementById('tableCountInput').value);
             if (newCount < 1 || newCount > 100) {
                 alert('Enter 1-100');
                 return;
             }
             
-            numTables = newCount;
-            localStorage.setItem('numTables', numTables);
-            
-            tables = [];
-            for (let i = 1; i <= numTables; i++) {
-                tables.push({ id: i, status: 'empty', orderId: null, staffName: null, readyBatches: 0, totalBatches: 0 });
+            try {
+                await apiClient.updateSetting('num_tables', newCount.toString());
+                numTables = newCount;
+                
+                initializeTables();
+                
+                document.getElementById('currentTableCount').textContent = numTables;
+                document.getElementById('tableCountDisplay').textContent = numTables;
+                
+                renderTables();
+                alert(`✓ ${numTables} tables!`);
+            } catch (error) {
+                alert('Error updating table count: ' + error.message);
             }
-            localStorage.setItem('tables', JSON.stringify(tables));
-            
-            document.getElementById('currentTableCount').textContent = numTables;
-            document.getElementById('tableCountDisplay').textContent = numTables;
-            
-            renderTables();
+        }
+
+        // ===== STAFF INTERFACE =====
             alert(`✓ ${numTables} tables!`);
         }
 
@@ -1410,7 +1650,7 @@
         }
 
         function updateStaffNotifications() {
-            const readyBatches = kitchenOrders.filter(ko => ko.status === 'ready' && ko.staffName === currentStaff);
+            const readyBatches = kitchenOrders.filter(ko => ko.status === 'ready' && (ko.staff_name || ko.staffName) === currentStaff);
             const container = document.getElementById('readyOrdersNotification');
             
             if (readyBatches.length === 0) {
@@ -1420,24 +1660,32 @@
                 container.innerHTML = `
                     <div class="section" style="background: #fff3cd; border-left: 4px solid var(--color-warning);">
                         <h2 style="color: var(--color-warning); margin: 0 0 var(--space-12) 0;">🔔 Ready Orders!</h2>
-                        ${readyBatches.map(ko => `
+                        ${readyBatches.map(ko => {
+                            const tableId = ko.table_id || ko.tableId;
+                            const batchId = ko.batch_id || ko.batchId;
+                            const orderId = ko.order_id || ko.orderId;
+                            return `
                             <div style="background: white; padding: 12px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                                <span>Table ${ko.tableId} - Batch #${ko.batchId}</span>
-                                <button class="btn btn-success" onclick="acknowledgeReady(${ko.orderId}, ${ko.batchId})" style="padding: 6px 12px; font-size: 12px;">Collect</button>
+                                <span>Table ${tableId} - Batch #${batchId}</span>
+                                <button class="btn btn-success" onclick="acknowledgeReady(${orderId}, ${batchId})" style="padding: 6px 12px; font-size: 12px;">Collect</button>
                             </div>
-                        `).join('')}
+                        `}).join('')}
                     </div>
                 `;
             }
         }
 
-        function acknowledgeReady(orderId, batchId) {
-            const ko = kitchenOrders.find(k => k.orderId === orderId && k.batchId === batchId);
+        async function acknowledgeReady(orderId, batchId) {
+            const ko = kitchenOrders.find(k => (k.order_id || k.orderId) === orderId && (k.batch_id || k.batchId) === batchId);
             if (ko) {
-                ko.status = 'collected';
-                saveData();
-                updateStaffNotifications();
-                renderTables();
+                try {
+                    await apiClient.updateKitchenOrder(ko.id, { status: 'collected' });
+                    ko.status = 'collected';
+                    updateStaffNotifications();
+                    renderTables();
+                } catch (error) {
+                    console.error('Error acknowledging ready order:', error);
+                }
             }
         }
 
@@ -1487,33 +1735,38 @@
             }).join('');
         }
 
-        function openTable(tableId) {
+        async function openTable(tableId) {
             selectedTable = tableId;
             const table = tables.find(t => t.id === tableId);
 
             if (table.status === 'empty') {
-                const newOrderId = ++orderCounter;
-                const newOrder = {
-                    id: newOrderId,
-                    tableId: tableId,
-                    staff: currentStaff,
-                    items: [],
-                    status: 'pending',
-                    batches: []
-                };
-                orders.push(newOrder);
-                table.status = 'occupied';
-                table.orderId = newOrderId;
-                table.staffName = currentStaff;
-                currentOrderItems = [];
+                try {
+                    const newOrder = await apiClient.createOrder({
+                        table_id: tableId,
+                        staff_name: currentStaff,
+                        items: [],
+                        status: 'pending'
+                    });
+                    
+                    orders.push(newOrder);
+                    table.status = 'occupied';
+                    table.orderId = newOrder.id;
+                    table.staffName = currentStaff;
+                    currentOrderItems = [];
+                    
+                    document.getElementById('modalOrderId').textContent = newOrder.id;
+                } catch (error) {
+                    alert('Error creating order: ' + error.message);
+                    return;
+                }
             } else {
                 const order = orders.find(o => o.id === table.orderId);
                 if (order) {
                     currentOrderItems = [];
+                    document.getElementById('modalOrderId').textContent = table.orderId;
                 }
             }
 
-            document.getElementById('modalOrderId').textContent = table.orderId;
             document.getElementById('modalTableNo').textContent = tableId;
             document.getElementById('modalStaffName').textContent = currentStaff;
             openOrderModal();
@@ -1549,7 +1802,7 @@
 
         function renderSentBatches() {
             const orderId = parseInt(document.getElementById('modalOrderId').textContent);
-            const batches = kitchenOrders.filter(ko => ko.orderId === orderId);
+            const batches = kitchenOrders.filter(ko => (ko.order_id || ko.orderId) === orderId);
             const container = document.getElementById('sentBatches');
             
             if (batches.length === 0) {
@@ -1558,13 +1811,14 @@
                 container.innerHTML = `<h3 style="margin-bottom: var(--space-12); font-size: 14px; color: var(--color-primary);">Sent Batches</h3>` + batches.map(batch => {
                     const statusColor = batch.status === 'ready' ? 'ready' : 'pending';
                     const statusText = batch.status === 'ready' ? '✓ READY' : batch.status === 'collected' ? '✓ COLLECTED' : '⏳ PENDING';
+                    const batchId = batch.batch_id || batch.batchId;
                     return `
                         <div class="batch-section" style="border-left: 4px solid ${batch.status === 'ready' ? 'var(--color-success)' : 'var(--color-warning)'};">
                             <div class="batch-header">
-                                <span>Batch #${batch.batchId}</span>
+                                <span>Batch #${batchId}</span>
                                 <span class="batch-status ${statusColor}">${statusText}</span>
                             </div>
-                            ${batch.items.map(item => `<div style="font-size: 12px; padding: 4px 0;">🍲 ${item.name} ×${item.qty}</div>`).join('')}
+                            ${batch.items.map(item => `<div style="font-size: 12px; padding: 4px 0;">🍲 ${item.name} ×${item.qty || item.quantity}</div>`).join('')}
                         </div>
                     `;
                 }).join('');
@@ -1614,50 +1868,42 @@
             renderCategoryMenu();
         }
 
-        function sendToKitchen() {
+        async function sendToKitchen() {
             if (currentOrderItems.length === 0) {
                 alert('Add items');
                 return;
             }
 
             const orderId = parseInt(document.getElementById('modalOrderId').textContent);
-            const order = orders.find(o => o.id === orderId);
             
             const newBatchId = ++batchCounter;
-            const kitchenOrder = {
-                orderId: orderId,
-                batchId: newBatchId,
-                staffName: currentStaff,
-                tableId: selectedTable,
-                items: JSON.parse(JSON.stringify(currentOrderItems)),
-                status: 'pending',
-                sentAt: Date.now()
+            const kitchenOrderData = {
+                order_id: orderId,
+                batch_id: newBatchId,
+                staff_name: currentStaff,
+                table_id: selectedTable,
+                items: currentOrderItems.map(item => ({
+                    name: item.name,
+                    qty: item.qty || item.quantity,
+                    price: item.price
+                })),
+                status: 'pending'
             };
-            kitchenOrders.push(kitchenOrder);
 
-            if (!order.batches) order.batches = [];
-            order.batches.push(newBatchId);
+            try {
+                const createdOrder = await apiClient.createKitchenOrder(kitchenOrderData);
+                kitchenOrders.push(createdOrder);
 
-            currentOrderItems.forEach(newItem => {
-                const existing = order.items.find(i => i.name === newItem.name);
-                if (existing) {
-                    existing.qty += newItem.qty;
-                } else {
-                    order.items.push({ ...newItem });
-                }
-            });
-
-            const table = tables.find(t => t.id === selectedTable);
-            table.status = 'waiting';
-
-            saveData();
-            alert(`✓ Batch #${newBatchId} sent!`);
-            currentOrderItems = [];
-            renderSentBatches();
-            renderCurrentOrderItems();
+                alert(`✓ Batch #${newBatchId} sent!`);
+                currentOrderItems = [];
+                renderSentBatches();
+                renderCurrentOrderItems();
+            } catch (error) {
+                alert('Error sending to kitchen: ' + error.message);
+            }
         }
 
-        function completeOrder() {
+        async function completeOrder() {
             const orderId = parseInt(document.getElementById('modalOrderId').textContent);
             const order = orders.find(o => o.id === orderId);
             
@@ -1666,28 +1912,86 @@
                 return;
             }
 
-            const total = order.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
-            alert(`✓ Complete - ₹${total}`);
-
-            const table = tables.find(t => t.id === selectedTable);
-            table.status = 'empty';
-            table.orderId = null;
-            table.staffName = null;
-            table.readyBatches = 0;
-            table.totalBatches = 0;
-
-            order.status = 'completed';
+            const total = order.items.reduce((sum, item) => sum + ((item.price * (item.qty || item.quantity))), 0);
             
-            kitchenOrders.filter(ko => ko.orderId === orderId).forEach(ko => {
-                ko.status = 'collected';
-            });
+            // Generate and print bill
+            try {
+                const taxRate = parseFloat(settings.tax_rate || 0);
+                const subtotal = total;
+                const tax = (subtotal * taxRate) / 100;
+                const billTotal = subtotal + tax;
 
-            saveData();
-            currentOrderItems = [];
-            closeOrderModal();
-            renderTables();
-            updateStaffStats();
-            updateStaffNotifications();
+                const billData = {
+                    order_id: orderId,
+                    table_id: selectedTable,
+                    staff_name: currentStaff,
+                    items: order.items.map(item => ({
+                        name: item.name || item.item_name,
+                        qty: item.qty || item.quantity,
+                        price: item.price
+                    })),
+                    subtotal: subtotal,
+                    tax: tax,
+                    total: billTotal
+                };
+
+                const bill = await apiClient.createBill(billData);
+                
+                // Update order status
+                await apiClient.updateOrder(orderId, { 
+                    status: 'completed',
+                    completed_at: new Date().toISOString()
+                });
+
+                // Print bill
+                if (confirm(`Bill Total: ₹${billTotal.toFixed(2)}\n\nPrint bill now?`)) {
+                    await printBill(bill);
+                }
+
+                // Update local state
+                order.status = 'completed';
+                const table = tables.find(t => t.id === selectedTable);
+                if (table) {
+                    table.status = 'empty';
+                    table.orderId = null;
+                    table.staffName = null;
+                }
+
+                currentOrderItems = [];
+                closeOrderModal();
+                renderTables();
+                updateStaffStats();
+                updateStaffNotifications();
+                
+                alert('✓ Order completed!');
+            } catch (error) {
+                alert('Error completing order: ' + error.message);
+            }
+        }
+
+        async function printBill(bill) {
+            try {
+                const htmlBill = billPrinter.generateHTMLBill(bill, settings);
+                
+                // Try thermal printer first
+                if ('serial' in navigator) {
+                    if (confirm('Connect thermal printer?')) {
+                        try {
+                            const commands = billPrinter.generateBillCommands(bill, settings);
+                            await billPrinter.printToThermalPrinter(commands);
+                            return;
+                        } catch (error) {
+                            console.error('Thermal print failed:', error);
+                        }
+                    }
+                }
+                
+                // Fallback to browser print
+                billPrinter.printToBrowser(htmlBill);
+            } catch (error) {
+                console.error('Error printing bill:', error);
+                alert('Error printing bill: ' + error.message);
+            }
         }
 
         function updateStaffStats() {
@@ -1712,11 +2016,12 @@
             const pendingHTML = pending.length === 0 
                 ? '<p style="text-align: center; padding: 40px; grid-column: 1/-1;">No pending orders</p>'
                 : pending.map(ko => {
-                    const duration = Math.round((Date.now() - ko.sentAt) / 60000);
-                    const staffName = ko.staffName || 'Unknown';
-                    const batchId = ko.batchId || '?';
-                    const orderId = ko.orderId || '?';
-                    const tableId = ko.tableId || '?';
+                    const sentAt = ko.sent_at || ko.sentAt;
+                    const duration = sentAt ? Math.round((Date.now() - new Date(sentAt).getTime()) / 60000) : 0;
+                    const staffName = ko.staff_name || ko.staffName || 'Unknown';
+                    const batchId = ko.batch_id || ko.batchId || '?';
+                    const orderId = ko.order_id || ko.orderId || '?';
+                    const tableId = ko.table_id || ko.tableId || '?';
                     
                     return `
                         <div class="kitchen-order pending">
@@ -1738,10 +2043,10 @@
             const readyHTML = ready.length === 0
                 ? '<p style="text-align: center; padding: 40px; grid-column: 1/-1;">No ready orders</p>'
                 : ready.map(ko => {
-                    const staffName = ko.staffName || 'Unknown';
-                    const batchId = ko.batchId || '?';
-                    const orderId = ko.orderId || '?';
-                    const tableId = ko.tableId || '?';
+                    const staffName = ko.staff_name || ko.staffName || 'Unknown';
+                    const batchId = ko.batch_id || ko.batchId || '?';
+                    const orderId = ko.order_id || ko.orderId || '?';
+                    const tableId = ko.table_id || ko.tableId || '?';
                     
                     return `
                         <div class="kitchen-order ready">
@@ -1751,7 +2056,7 @@
                             </div>
                             <div class="kitchen-staff-name" style="background: #d4edda; color: var(--color-success);">👤 ${staffName}</div>
                             <div class="kitchen-items">
-                                ${ko.items && ko.items.length > 0 ? ko.items.map(item => `<div class="kitchen-item">✓ ${item.name} ×${item.qty}</div>`).join('') : '<div class="kitchen-item">No items</div>'}
+                                ${ko.items && ko.items.length > 0 ? ko.items.map(item => `<div class="kitchen-item">✓ ${item.name} ×${item.qty || item.quantity}</div>`).join('') : '<div class="kitchen-item">No items</div>'}
                             </div>
                         </div>
                     `;
@@ -1761,12 +2066,19 @@
             document.getElementById('readyOrders').innerHTML = readyHTML;
         }
 
-        function markReady(orderId, batchId) {
-            const ko = kitchenOrders.find(k => k.orderId === orderId && k.batchId === batchId);
+        async function markReady(orderId, batchId) {
+            const ko = kitchenOrders.find(k => k.order_id === orderId && k.batch_id === batchId);
             if (ko) {
-                ko.status = 'ready';
-                saveData();
-                renderKitchenOrders();
+                try {
+                    await apiClient.updateKitchenOrder(ko.id, { 
+                        status: 'ready',
+                        ready_at: new Date().toISOString()
+                    });
+                    ko.status = 'ready';
+                    renderKitchenOrders();
+                } catch (error) {
+                    alert('Error marking order ready: ' + error.message);
+                }
             }
         }
 
@@ -1801,13 +2113,35 @@
             document.getElementById('activeTablesDisplay').textContent = activeTables;
         }
 
-        function renderStaffPerformance() {
-            const staffStats = {};
-            orders.filter(o => o.status === 'completed').forEach(order => {
-                if (!staffStats[order.staff]) {
-                    staffStats[order.staff] = { orders: 0, revenue: 0 };
+        async function renderStaffPerformance() {
+            try {
+                const performance = await apiClient.getStaffPerformance();
+                const tbody = document.getElementById('staffPerfList');
+                
+                if (performance.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5">No data</td></tr>';
+                    return;
                 }
-                staffStats[order.staff].orders += 1;
+
+                const totalRevenue = performance.reduce((sum, p) => sum + p.total_revenue, 0);
+                
+                tbody.innerHTML = performance.map(perf => {
+                    const percentage = totalRevenue > 0 ? ((perf.total_revenue / totalRevenue) * 100).toFixed(0) : 0;
+                    return `
+                        <tr>
+                            <td>${perf.staff_name}</td>
+                            <td>${perf.order_count}</td>
+                            <td>₹${perf.total_revenue.toFixed(2)}</td>
+                            <td>₹${perf.avg_order_value.toFixed(2)}</td>
+                            <td>${percentage}%</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error rendering staff performance:', error);
+                document.getElementById('staffPerfList').innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--color-danger);">Error loading data</td></tr>';
+            }
+        }
                 staffStats[order.staff].revenue += order.items.reduce((sum, i) => sum + (i.price * i.qty), 0);
             });
 
@@ -1841,7 +2175,7 @@
             `).join('');
         }
 
-        function addNewStaff() {
+        async function addNewStaff() {
             const name = document.getElementById('newStaffName').value.trim();
             if (!name) {
                 alert('Enter name');
@@ -1851,18 +2185,30 @@
                 alert('Already exists');
                 return;
             }
-            staffList.push(name);
-            localStorage.setItem('staffList', JSON.stringify(staffList));
-            document.getElementById('newStaffName').value = '';
-            renderStaffMembers();
-            alert(`✓ Added`);
+            
+            try {
+                await apiClient.addStaff(name);
+                staffList.push(name);
+                document.getElementById('newStaffName').value = '';
+                renderStaffMembers();
+                alert(`✓ Added`);
+            } catch (error) {
+                alert('Error adding staff: ' + error.message);
+            }
         }
 
-        function removeStaff(name) {
+        async function removeStaff(name) {
             if (confirm(`Remove ${name}?`)) {
-                staffList = staffList.filter(s => s !== name);
-                localStorage.setItem('staffList', JSON.stringify(staffList));
-                renderStaffMembers();
+                try {
+                    const staff = (await apiClient.getStaff()).find(s => s.name === name);
+                    if (staff) {
+                        await apiClient.deleteStaff(staff.id);
+                        staffList = staffList.filter(s => s !== name);
+                        renderStaffMembers();
+                    }
+                } catch (error) {
+                    alert('Error removing staff: ' + error.message);
+                }
             }
         }
 
@@ -1871,15 +2217,15 @@
             tbody.innerHTML = orders.length === 0
                 ? '<tr><td colspan="6">No orders</td></tr>'
                 : orders.map(order => {
-                    const total = order.items.reduce((sum, i) => sum + (i.price * i.qty), 0);
-                    const batchCount = order.batches ? order.batches.length : 0;
+                    const total = order.total || order.items.reduce((sum, i) => sum + ((i.price || 0) * (i.qty || i.quantity || 0)), 0);
+                    const batchCount = kitchenOrders.filter(ko => ko.order_id === order.id).length;
                     return `
                         <tr>
                             <td>ORD-${order.id}</td>
-                            <td>${order.staff}</td>
-                            <td>${order.tableId}</td>
+                            <td>${order.staff_name || order.staff}</td>
+                            <td>${order.table_id || order.tableId}</td>
                             <td>${batchCount}</td>
-                            <td>₹${total}</td>
+                            <td>₹${total.toFixed(2)}</td>
                             <td>${order.status === 'completed' ? '✓' : '⏳'}</td>
                         </tr>
                     `;
@@ -1893,32 +2239,156 @@
             event.target.classList.add('active');
         }
 
+        // Bills Modal Functions
+        async function openBillsModal() {
+            document.getElementById('billsModal').classList.add('active');
+            await loadBills();
+        }
+
+        function closeBillsModal() {
+            document.getElementById('billsModal').classList.remove('active');
+        }
+
+        async function loadBills(searchTerm = '') {
+            try {
+                const params = searchTerm ? { search: searchTerm } : {};
+                const bills = await apiClient.getBills(params);
+                renderBillsList(bills);
+            } catch (error) {
+                console.error('Error loading bills:', error);
+                document.getElementById('billsList').innerHTML = '<p style="text-align: center; padding: 40px; color: var(--color-danger);">Error loading bills</p>';
+            }
+        }
+
+        function renderBillsList(bills) {
+            const container = document.getElementById('billsList');
+            if (bills.length === 0) {
+                container.innerHTML = '<p style="text-align: center; padding: 40px; color: #7f8c8d;">No bills found</p>';
+                return;
+            }
+
+            container.innerHTML = bills.map(bill => `
+                <div style="background: white; border: 1px solid var(--color-border); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong style="color: var(--color-primary);">${bill.bill_number}</strong>
+                        <span style="font-size: 12px; color: #7f8c8d;">${new Date(bill.created_at).toLocaleString()}</span>
+                    </div>
+                    <div style="font-size: 13px; margin-bottom: 8px;">
+                        <div>Table: ${bill.table_id} | Staff: ${bill.staff_name}</div>
+                        <div style="margin-top: 4px;"><strong>Total: ₹${bill.total.toFixed(2)}</strong></div>
+                    </div>
+                    <button class="btn btn-primary" onclick="reprintBill(${bill.id})" style="padding: 6px 12px; font-size: 12px;">🖨️ Reprint</button>
+                </div>
+            `).join('');
+        }
+
+        async function reprintBill(billId) {
+            try {
+                const bill = await apiClient.getBill(billId);
+                await printBill(bill);
+            } catch (error) {
+                alert('Error reprinting bill: ' + error.message);
+            }
+        }
+
+        async function searchBills() {
+            const searchTerm = document.getElementById('billSearchInput').value.trim();
+            await loadBills(searchTerm);
+        }
+
+        // Analytics Modal Functions
+        async function openAnalyticsModal() {
+            document.getElementById('analyticsModal').classList.add('active');
+            await loadAnalytics();
+        }
+
+        function closeAnalyticsModal() {
+            document.getElementById('analyticsModal').classList.remove('active');
+        }
+
+        async function loadAnalytics() {
+            try {
+                // Load popular items
+                const popularItems = await apiClient.getPopularItems();
+                renderPopularItems(popularItems);
+
+                // Load sales trends
+                const dailySales = await apiClient.getDailySales(30);
+                renderSalesTrends(dailySales);
+
+                // Load hourly sales
+                const hourlySales = await apiClient.getHourlySales();
+                renderHourlySales(hourlySales);
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+            }
+        }
+
+        function renderPopularItems(items) {
+            const tbody = document.getElementById('popularItemsList');
+            tbody.innerHTML = items.length === 0
+                ? '<tr><td colspan="4" style="text-align: center;">No data</td></tr>'
+                : items.map(item => `
+                    <tr>
+                        <td>${item.item_name}</td>
+                        <td>${item.total_quantity}</td>
+                        <td>${item.order_count}</td>
+                        <td>₹${item.total_revenue.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+        }
+
+        function renderSalesTrends(sales) {
+            const tbody = document.getElementById('salesTrendList');
+            tbody.innerHTML = sales.length === 0
+                ? '<tr><td colspan="3" style="text-align: center;">No data</td></tr>'
+                : sales.map(sale => `
+                    <tr>
+                        <td>${new Date(sale.date).toLocaleDateString()}</td>
+                        <td>${sale.order_count}</td>
+                        <td>₹${sale.total_revenue.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+        }
+
+        function renderHourlySales(sales) {
+            const tbody = document.getElementById('hourlySalesList');
+            tbody.innerHTML = sales.length === 0
+                ? '<tr><td colspan="3" style="text-align: center;">No data</td></tr>'
+                : sales.map(sale => `
+                    <tr>
+                        <td>${sale.hour}:00</td>
+                        <td>${sale.order_count}</td>
+                        <td>₹${sale.total_revenue.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+        }
+
+        function switchAnalyticsTab(tab) {
+            document.querySelectorAll('#analyticsModal .tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('#analyticsModal .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
         // ===== UTILITY =====
         function saveData() {
-            localStorage.setItem('orders', JSON.stringify(orders));
-            localStorage.setItem('kitchenOrders', JSON.stringify(kitchenOrders));
-            localStorage.setItem('tables', JSON.stringify(tables));
-            localStorage.setItem('orderCounter', orderCounter);
-            localStorage.setItem('batchCounter', batchCounter);
-            localStorage.setItem('staffList', JSON.stringify(staffList));
-            localStorage.setItem('menu', JSON.stringify(menu));
-            localStorage.setItem('numTables', numTables);
-            calculateStorageUsage();
+            // No longer needed - data is saved via API
+            // Kept for compatibility
         }
 
         window.addEventListener('beforeunload', saveData);
 
-        function checkLogin() {
-            if (localStorage.getItem('currentRole')) {
-                currentRole = localStorage.getItem('currentRole');
-                currentStaff = localStorage.getItem('currentStaff') || null;
-                numTables = parseInt(localStorage.getItem('numTables')) || 4;
-                batchCounter = parseInt(localStorage.getItem('batchCounter')) || 100;
+        async function checkLogin() {
+            if (sessionStorage.getItem('currentRole')) {
+                currentRole = sessionStorage.getItem('currentRole');
+                currentStaff = sessionStorage.getItem('currentStaff') || null;
                 currentMode = currentRole === 'staff' ? 'staff' : currentRole === 'kitchen' ? 'kitchen' : 'owner';
-                login();
+                await login();
             }
         }
 
+        // Initialize on page load
         checkLogin();
     </script>
 </body>
