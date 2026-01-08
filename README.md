@@ -1,6 +1,28 @@
 # Gokul Restaurant Management System
 
-A complete multi-user restaurant management system with real-time synchronization, PWA support, and thermal printer integration.
+A complete multi-user restaurant management system with real-time synchronization, PWA support, Supabase integration, and thermal printer support.
+
+## ✨ Latest Enhancements
+
+### 🔄 PWA Improvements (v2.0.0)
+- **Automatic Update Detection**: Get notified when a new version is available
+- **One-Click Updates**: Update the app without losing your current work
+- **Improved Offline Support**: Better caching strategy for reliable offline operation
+- **Stable Refresh**: State is preserved during app updates and refreshes
+
+### 🔐 Staff Permissions & Multi-User Controls
+- **Order Isolation**: Staff members only see their own orders by default
+- **Granular Permissions**: Owners can grant specific staff access to view other staff orders
+- **Real-Time Updates**: Permission changes apply immediately across all devices
+- **Clear Instructions**: Step-by-step guidance for staff and kitchen workflows
+
+### ☁️ Supabase Backend Support
+- **Cloud Database**: Optional Supabase integration for scalable cloud storage
+- **Real-Time Sync**: Instant synchronization across all devices
+- **Audit Logging**: Automatic tracking of all important actions
+- **Row-Level Security**: Built-in security policies for data protection
+
+See [SUPABASE_MIGRATION_GUIDE.md](./SUPABASE_MIGRATION_GUIDE.md) for detailed setup instructions.
 
 ## Features
 
