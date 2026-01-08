@@ -680,23 +680,26 @@
 
     <div class="container">
         <!-- Login Screen -->
-        <div id="loginScreen" style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
-            <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; max-width: 500px; width: 100%;">
-                <h1 style="font-size: 32px; margin-bottom: 10px; color: var(--color-primary);">🍽️ Gokul Restaurant</h1>
-                <p style="color: #7f8c8d; margin-bottom: 30px; font-size: 14px;">Select Your Role</p>
-                
-                <button onclick="showStaffSelect()" style="width: 100%; padding: 16px; margin-bottom: 12px; background: var(--color-primary); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">👨‍💼 Staff / Team Member</button>
-                
-                <button onclick="showOwnerLogin()" style="width: 100%; padding: 16px; background: var(--color-success); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">👑 Owner / Manager</button>
-                
-                <button onclick="showKitchenDisplay()" style="width: 100%; padding: 16px; margin-top: 12px; background: #e67e22; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">👨‍🍳 Kitchen Display System</button>
+        <div id="loginScreen" style="display: block;">
+            <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+                <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; max-width: 500px; width: 100%;">
+                    <h1 style="font-size: 32px; margin-bottom: 10px; color: var(--color-primary);">🍽️ Gokul Restaurant</h1>
+                    <p style="color: #7f8c8d; margin-bottom: 30px; font-size: 14px;">Select Your Role</p>
+                    
+                    <button onclick="showStaffSelect()" style="width: 100%; padding: 16px; margin-bottom: 12px; background: var(--color-primary); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">👨‍💼 Staff / Team Member</button>
+                    
+                    <button onclick="showOwnerLogin()" style="width: 100%; padding: 16px; background: var(--color-success); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">👑 Owner / Manager</button>
+                    
+                    <button onclick="showKitchenDisplay()" style="width: 100%; padding: 16px; margin-top: 12px; background: #e67e22; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">👨‍🍳 Kitchen Display System</button>
+                </div>
             </div>
         </div>
 
         <!-- Staff Select Screen -->
-        <div id="staffSelectScreen" style="display: none; display: flex; align-items: center; justify-content: center; min-height: 100vh;">
-            <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%;">
-                <h1 style="font-size: 28px; margin-bottom: 10px; color: var(--color-primary);">👨‍💼 Staff Login</h1>
+        <div id="staffSelectScreen" style="display: none;">
+            <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+                <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%;">
+                    <h1 style="font-size: 28px; margin-bottom: 10px; color: var(--color-primary);">👨‍💼 Staff Login</h1>
                 <p style="color: #7f8c8d; margin-bottom: 20px; font-size: 14px;">Enter your name to login</p>
                 
                 <div style="margin-bottom: 20px;">
@@ -705,25 +708,28 @@
                 
                 <button onclick="loginWithStaffName()" style="width: 100%; padding: 12px; margin-bottom: 12px; background: var(--color-success); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Login</button>
                 
-                <button onclick="backToRoleSelect()" style="width: 100%; padding: 12px; background: var(--color-border); color: var(--color-text); border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Back</button>
+                    <button onclick="backToRoleSelect()" style="width: 100%; padding: 12px; background: var(--color-border); color: var(--color-text); border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Back</button>
+                </div>
             </div>
         </div>
 
         <!-- Owner Password Login -->
-        <div id="ownerLoginScreen" style="display: none; display: flex; align-items: center; justify-content: center; min-height: 100vh;">
-            <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%;">
-                <h1 style="font-size: 32px; margin-bottom: 10px; color: var(--color-success);">👑 Owner</h1>
-                <p style="color: #7f8c8d; margin-bottom: 20px; font-size: 14px;">Enter Password</p>
-                
-                <div style="margin-bottom: 20px;">
-                    <input type="password" id="ownerPassword" placeholder="Enter password" style="width: 100%; padding: 12px; border: 2px solid var(--color-border); border-radius: 8px; font-size: 16px; box-sizing: border-box;" onkeypress="if(event.key==='Enter') verifyOwnerPassword()">
+        <div id="ownerLoginScreen" style="display: none;">
+            <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+                <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%;">
+                    <h1 style="font-size: 32px; margin-bottom: 10px; color: var(--color-success);">👑 Owner</h1>
+                    <p style="color: #7f8c8d; margin-bottom: 20px; font-size: 14px;">Enter Password</p>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <input type="password" id="ownerPassword" placeholder="Enter password" style="width: 100%; padding: 12px; border: 2px solid var(--color-border); border-radius: 8px; font-size: 16px; box-sizing: border-box;" onkeypress="if(event.key==='Enter') verifyOwnerPassword()">
+                    </div>
+                    
+                    <button onclick="verifyOwnerPassword()" style="width: 100%; padding: 12px; margin-bottom: 12px; background: var(--color-success); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Login</button>
+                    
+                    <button onclick="backToRoleSelect()" style="width: 100%; padding: 12px; background: var(--color-border); color: var(--color-text); border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Back</button>
+                    
+                    <p id="passwordError" style="color: var(--color-danger); margin-top: 12px; font-size: 13px; display: none;"></p>
                 </div>
-                
-                <button onclick="verifyOwnerPassword()" style="width: 100%; padding: 12px; margin-bottom: 12px; background: var(--color-success); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Login</button>
-                
-                <button onclick="backToRoleSelect()" style="width: 100%; padding: 12px; background: var(--color-border); color: var(--color-text); border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">Back</button>
-                
-                <p id="passwordError" style="color: var(--color-danger); margin-top: 12px; font-size: 13px; display: none;"></p>
             </div>
         </div>
 
@@ -1484,7 +1490,7 @@
 
         function showStaffSelect() {
             document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('staffSelectScreen').style.display = 'flex';
+            document.getElementById('staffSelectScreen').style.display = 'block';
             document.getElementById('customStaffName').focus();
         }
 
@@ -1515,7 +1521,7 @@
 
         function showOwnerLogin() {
             document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('ownerLoginScreen').style.display = 'flex';
+            document.getElementById('ownerLoginScreen').style.display = 'block';
         }
 
         async function showKitchenDisplay() {
@@ -1543,7 +1549,7 @@
         function backToRoleSelect() {
             document.getElementById('staffSelectScreen').style.display = 'none';
             document.getElementById('ownerLoginScreen').style.display = 'none';
-            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('loginScreen').style.display = 'block';
         }
 
         async function login() {
@@ -1594,7 +1600,7 @@
             sessionStorage.setItem('currentRole', '');
             sessionStorage.setItem('currentStaff', '');
             document.getElementById('appScreen').style.display = 'none';
-            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('loginScreen').style.display = 'block';
         }
 
         // ===== MENU MANAGEMENT =====
