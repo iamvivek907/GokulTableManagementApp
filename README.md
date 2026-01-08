@@ -50,12 +50,13 @@ See [SUPABASE_MIGRATION_GUIDE.md](./SUPABASE_MIGRATION_GUIDE.md) for detailed se
 ### Prerequisites
 - Node.js 14+ installed
 - Modern web browser (Chrome, Edge, Safari, or Firefox)
+- (Optional) Supabase account for cloud database and real-time features
 
-### Setup
+### Local Development Setup
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/iamvivek907/GokulTableManagementApp.git
    cd GokulTableManagementApp
    ```
 
@@ -64,22 +65,98 @@ See [SUPABASE_MIGRATION_GUIDE.md](./SUPABASE_MIGRATION_GUIDE.md) for detailed se
    npm install
    ```
 
-3. **Start the server**
+3. **Configure environment (Optional - for Supabase)**
+   
+   Create a `.env` file in the root directory:
+   ```env
+   SUPABASE_URL=your_supabase_project_url
+   SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+   PORT=3000
+   NODE_ENV=development
+   ```
+   
+   **Without Supabase**: The app will automatically use SQLite as a fallback database.
+
+4. **Start the server**
    ```bash
    npm start
    ```
 
-4. **Access the application**
+5. **Access the application**
    - Open your browser and navigate to: `http://localhost:3000`
    - For mobile devices on same network: `http://<your-ip>:3000`
 
-### Production Deployment
+### Supabase Setup (Optional but Recommended for Production)
 
-For production deployment, consider:
-- Use a process manager like PM2: `pm2 start server.js`
-- Set up HTTPS (required for PWA features)
-- Configure firewall and security settings
-- Regular database backups
+For cloud database, real-time sync, and multi-device support:
+
+1. **Create a Supabase Project**
+   - Go to [supabase.com](https://supabase.com)
+   - Create a new project
+   - Note your project URL and API keys
+
+2. **Run the Database Schema**
+   - Open Supabase SQL Editor
+   - Copy contents from `supabase-schema.sql`
+   - Run the SQL to create all tables and policies
+
+3. **Configure Environment Variables**
+   - Add your Supabase credentials to `.env` file (see above)
+   - Or configure GitHub Secrets for deployment (see below)
+
+4. **Enable Real-time**
+   - In Supabase Dashboard: Database → Replication
+   - Enable replication for tables: `orders`, `kitchen_orders`, `staff_permissions`, `notifications`
+
+### GitHub Pages Deployment
+
+1. **Configure GitHub Secrets**
+   
+   In your repository: Settings → Secrets and variables → Actions
+   
+   Add these secrets:
+   - `SUPABASE_URL`: Your Supabase project URL
+   - `SUPABASE_ANON_KEY`: Your Supabase anon public key
+   - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key
+
+2. **Deploy**
+   ```bash
+   git push origin main
+   ```
+   
+   GitHub Actions will automatically deploy to GitHub Pages.
+
+### Production Deployment (Self-Hosted)
+
+For self-hosted production deployment:
+
+1. **Install PM2 (Process Manager)**
+   ```bash
+   npm install -g pm2
+   ```
+
+2. **Start with PM2**
+   ```bash
+   pm2 start server.js --name "gokul-restaurant"
+   pm2 save
+   pm2 startup
+   ```
+
+3. **Setup HTTPS** (Required for PWA)
+   - Use nginx or Apache as reverse proxy
+   - Configure SSL certificate (Let's Encrypt recommended)
+
+4. **Configure Firewall**
+   ```bash
+   sudo ufw allow 3000/tcp  # Or your chosen port
+   sudo ufw allow 80/tcp
+   sudo ufw allow 443/tcp
+   ```
+
+5. **Regular Backups**
+   - Setup automated database backups
+   - Store backups securely offsite
 
 ## Usage
 
@@ -146,26 +223,48 @@ Login as owner → Configure tab → Change table count
 
 ## Database
 
-The application uses SQLite database (`restaurant.db`) which is automatically created on first run.
+The application supports two database modes:
 
-### Backup
+### SQLite Mode (Default Fallback)
+- Uses local SQLite database (`restaurant.db`)
+- Automatically created on first run
+- Perfect for single-device or local network usage
+- No internet connection required
 
+### Supabase Mode (Recommended for Production)
+- Cloud PostgreSQL database
+- Real-time synchronization across all devices
+- Row-level security policies
+- Automatic audit logging
+- Scalable and reliable
+
+See `supabase-schema.sql` for the complete database schema.
+
+### Backup & Restore
+
+**For SQLite:**
 - Use the owner dashboard "Backup" tab
 - Download JSON backups regularly
 - Store backups securely
 
-### Restore
-
-- Upload a previously downloaded backup file
-- All data will be replaced
+**For Supabase:**
+- Backups managed automatically by Supabase
+- Download backups from Supabase Dashboard
+- Point-in-time recovery available
 
 ## Technology Stack
 
-- **Frontend**: Vanilla HTML/CSS/JavaScript
+- **Frontend**: Vanilla HTML/CSS/JavaScript (No frameworks for maximum performance)
 - **Backend**: Node.js + Express
-- **Database**: SQLite (better-sqlite3)
-- **Real-time**: WebSockets (ws)
+- **Database**: 
+  - SQLite (better-sqlite3) - Local fallback
+  - Supabase PostgreSQL - Cloud option
+- **Real-time**: 
+  - WebSockets (ws) - Server-to-client
+  - Supabase Realtime - Cloud sync
 - **PWA**: Service Workers, Web App Manifest
+- **State Management**: Custom state manager with offline queue
+- **Printer Support**: Web Serial API for thermal printers
 
 ## Browser Compatibility
 
