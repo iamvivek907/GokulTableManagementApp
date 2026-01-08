@@ -428,7 +428,6 @@ app.get('/api/orders', async (req, res) => {
         items: order.order_items.map(item => ({
           name: item.item_name,
           quantity: item.quantity,
-          qty: item.quantity,
           price: parseFloat(item.price)
         }))
       }));
@@ -445,7 +444,6 @@ app.get('/api/orders', async (req, res) => {
           items: items.map(item => ({
             name: item.item_name,
             quantity: item.quantity,
-            qty: item.quantity,
             price: item.price
           }))
         };
@@ -548,7 +546,6 @@ app.post('/api/orders', async (req, res) => {
       order.items = orderItems.map(item => ({
         name: item.item_name,
         quantity: item.quantity,
-        qty: item.quantity,
         price: item.price
       }));
       
@@ -577,8 +574,22 @@ app.patch('/api/orders/:id', async (req, res) => {
       broadcast('order_updated', data);
       res.json(data);
     } else {
-      const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-      const values = [...Object.values(updates), req.params.id];
+      // Whitelist allowed fields to prevent SQL injection
+      const allowedFields = ['status', 'total', 'completed_at', 'table_id', 'staff_name'];
+      const sanitizedUpdates = {};
+      
+      for (const key of Object.keys(updates)) {
+        if (allowedFields.includes(key)) {
+          sanitizedUpdates[key] = updates[key];
+        }
+      }
+      
+      if (Object.keys(sanitizedUpdates).length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+      
+      const fields = Object.keys(sanitizedUpdates).map(key => `${key} = ?`).join(', ');
+      const values = [...Object.values(sanitizedUpdates), req.params.id];
       
       db.prepare(`UPDATE orders SET ${fields} WHERE id = ?`).run(...values);
       
@@ -588,7 +599,6 @@ app.patch('/api/orders/:id', async (req, res) => {
       order.items = orderItems.map(item => ({
         name: item.item_name,
         quantity: item.quantity,
-        qty: item.quantity,
         price: item.price
       }));
       
@@ -685,8 +695,22 @@ app.patch('/api/kitchen-orders/:id', async (req, res) => {
       broadcast('kitchen_order_updated', data);
       res.json(data);
     } else {
-      const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-      const values = [...Object.values(updates), req.params.id];
+      // Whitelist allowed fields to prevent SQL injection
+      const allowedFields = ['status', 'ready_at'];
+      const sanitizedUpdates = {};
+      
+      for (const key of Object.keys(updates)) {
+        if (allowedFields.includes(key)) {
+          sanitizedUpdates[key] = updates[key];
+        }
+      }
+      
+      if (Object.keys(sanitizedUpdates).length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+      
+      const fields = Object.keys(sanitizedUpdates).map(key => `${key} = ?`).join(', ');
+      const values = [...Object.values(sanitizedUpdates), req.params.id];
       
       db.prepare(`UPDATE kitchen_orders SET ${fields} WHERE id = ?`).run(...values);
       
