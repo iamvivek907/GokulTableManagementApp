@@ -726,7 +726,9 @@ app.get('/api/bills', async (req, res) => {
         .order('created_at', { ascending: false });
       
       if (search) {
-        query = query.or(`bill_number.ilike.%${search}%,staff_name.ilike.%${search}%`);
+        // Supabase handles parameterization, but sanitize input
+        const sanitizedSearch = String(search).substring(0, 100); // Limit length
+        query = query.or(`bill_number.ilike.%${sanitizedSearch}%,staff_name.ilike.%${sanitizedSearch}%`);
       }
       
       const { data, error } = await query;
@@ -743,9 +745,10 @@ app.get('/api/bills', async (req, res) => {
       
       // Filter by search if provided
       if (search) {
+        const sanitizedSearch = String(search).toLowerCase().substring(0, 100);
         const filtered = bills.filter(b => 
-          b.bill_number.toLowerCase().includes(search.toLowerCase()) ||
-          b.staff_name.toLowerCase().includes(search.toLowerCase())
+          b.bill_number.toLowerCase().includes(sanitizedSearch) ||
+          b.staff_name.toLowerCase().includes(sanitizedSearch)
         );
         res.json(filtered);
       } else {
@@ -784,8 +787,10 @@ app.post('/api/bills', async (req, res) => {
   try {
     const { order_id, table_id, staff_name, items, subtotal, tax, total } = req.body;
     
-    // Generate bill number
-    const billNumber = `BILL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    // Generate more robust bill number using UUID-like approach
+    const timestamp = Date.now();
+    const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const billNumber = `BILL-${timestamp}-${randomPart}`;
     
     if (USE_SUPABASE) {
       const staff = await getOrCreateStaffUser(staff_name);
