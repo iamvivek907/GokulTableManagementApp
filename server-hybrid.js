@@ -292,8 +292,8 @@ app.post('/api/menu/bulk', async (req, res) => {
     const { items } = req.body;
     
     if (USE_SUPABASE) {
-      // Delete all existing
-      await supabase.from('menu').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      // Delete all existing menu items explicitly
+      await supabase.from('menu').delete().gte('id', '00000000-0000-0000-0000-000000000000');
       
       // Insert new items
       const { data, error } = await supabase

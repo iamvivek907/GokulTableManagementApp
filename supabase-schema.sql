@@ -293,6 +293,10 @@ CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON public.settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Function to create audit log
+-- Note: Uses SECURITY DEFINER to ensure audit logs are created even if
+-- the triggering user doesn't have direct INSERT permission on audit_logs.
+-- This is necessary for proper audit trail functionality.
+-- Security: Only accessible via triggers, not directly callable by users.
 CREATE OR REPLACE FUNCTION create_audit_log()
 RETURNS TRIGGER AS $$
 BEGIN

@@ -113,6 +113,8 @@ async function getUser(identifier) {
 
 /**
  * Get or create staff user
+ * Note: Uses temporary email addresses for staff members.
+ * In production, consider implementing proper user registration flow.
  */
 async function getOrCreateStaffUser(name) {
   if (!supabase) return { id: null, name };
@@ -123,8 +125,15 @@ async function getOrCreateStaffUser(name) {
     
     if (!user) {
       // Create new staff user in Supabase Auth
-      const email = `${name.toLowerCase().replace(/\s+/g, '.')}@gokul-staff.local`;
-      const password = `staff_${Math.random().toString(36).slice(-8)}`;
+      // Sanitize name for email: remove special chars, convert spaces to dots
+      const sanitizedName = name.toLowerCase()
+        .replace(/[^a-z0-9\s]/gi, '')  // Remove special characters
+        .replace(/\s+/g, '.');  // Replace spaces with dots
+      const email = `${sanitizedName}@gokul-staff.local`;
+      
+      // Generate secure random password using crypto
+      const crypto = require('crypto');
+      const password = `staff_${crypto.randomBytes(8).toString('hex')}`;
       
       const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
         email,
