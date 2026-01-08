@@ -1890,10 +1890,6 @@
         }
 
         // ===== STAFF INTERFACE =====
-            alert(`✓ ${numTables} tables!`);
-        }
-
-        // ===== STAFF INTERFACE =====
         function initStaffInterface() {
             document.getElementById('tableCountDisplay').textContent = numTables;
             renderTables();
@@ -2393,28 +2389,6 @@
                 console.error('Error rendering staff performance:', error);
                 document.getElementById('staffPerfList').innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--color-danger);">Error loading data</td></tr>';
             }
-        }
-                staffStats[order.staff].revenue += order.items.reduce((sum, i) => sum + (i.price * i.qty), 0);
-            });
-
-            const staff = Object.entries(staffStats).sort((a, b) => b[1].revenue - a[1].revenue);
-            const totalRevenue = staff.reduce((sum, [, stats]) => sum + stats.revenue, 0);
-
-            const tbody = document.getElementById('staffPerfList');
-            tbody.innerHTML = staff.length === 0
-                ? '<tr><td colspan="5">No data</td></tr>'
-                : staff.map(([name, stats]) => {
-                    const percentage = totalRevenue > 0 ? ((stats.revenue / totalRevenue) * 100).toFixed(0) : 0;
-                    return `
-                        <tr>
-                            <td>${name}</td>
-                            <td>${stats.orders}</td>
-                            <td>₹${stats.revenue}</td>
-                            <td>₹${(stats.revenue / stats.orders).toFixed(0)}</td>
-                            <td>${percentage}%</td>
-                        </tr>
-                    `;
-                }).join('');
         }
 
         function renderStaffMembers() {
