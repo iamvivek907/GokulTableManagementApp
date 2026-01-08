@@ -736,6 +736,12 @@
                         <p id="headerSubtitle">Management</p>
                     </div>
                     <div style="text-align: right;">
+                        <!-- Connection Status Indicator -->
+                        <div id="connectionStatus" style="font-size: 11px; margin-bottom: 4px; opacity: 0.9;">
+                            <span id="statusDot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #27ae60; margin-right: 4px;"></span>
+                            <span id="statusText">Online</span>
+                            <span id="pendingSyncBadge" style="display: none; background: #f39c12; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 4px;">Syncing...</span>
+                        </div>
                         <p style="font-size: 12px; margin: 0; opacity: 0.9;"><strong id="roleDisplay"></strong></p>
                         <button onclick="logout()" style="background: rgba(255,255,255,0.3); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 4px;">Logout</button>
                     </div>
@@ -1239,6 +1245,7 @@
 
     <script src="/api-client.js"></script>
     <script src="/bill-printer.js"></script>
+    <script src="/state-manager.js"></script>
     <script>
         // PWA Service Worker Registration
         let swRegistration = null;
@@ -1540,6 +1547,9 @@
         }
 
         async function login() {
+            // Save session to state manager for persistence
+            stateManager.setSession(currentRole, currentStaff);
+            
             // Load data from API
             await loadInitialData();
             await loadOrders();
@@ -1576,6 +1586,9 @@
         }
 
         function logout() {
+            // Clear state manager session
+            stateManager.clearSession();
+            
             currentRole = null;
             currentStaff = null;
             sessionStorage.setItem('currentRole', '');
@@ -2766,9 +2779,52 @@
             }
         }
 
+        // ===== CONNECTION STATUS MONITORING =====
+        function updateConnectionStatus() {
+            const isOnline = navigator.onLine;
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const pendingBadge = document.getElementById('pendingSyncBadge');
+            
+            if (!statusDot || !statusText) return;
+            
+            if (isOnline) {
+                statusDot.style.background = '#27ae60';
+                statusText.textContent = 'Online';
+                
+                // Check for pending sync
+                if (stateManager && stateManager.hasPendingSync()) {
+                    const count = stateManager.getPendingSyncCount();
+                    pendingBadge.style.display = 'inline-block';
+                    pendingBadge.textContent = `Syncing ${count}...`;
+                    
+                    // Try to force sync
+                    stateManager.forceSyncAll().then(() => {
+                        setTimeout(() => {
+                            pendingBadge.style.display = 'none';
+                        }, 1000);
+                    });
+                } else {
+                    pendingBadge.style.display = 'none';
+                }
+            } else {
+                statusDot.style.background = '#e74c3c';
+                statusText.textContent = 'Offline';
+                pendingBadge.style.display = 'none';
+            }
+        }
+
+        // Monitor connection status
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
+        
+        // Update status every 5 seconds
+        setInterval(updateConnectionStatus, 5000);
+
         // Initialize on page load
         loadStoredPermissions(); // Load staff permissions from localStorage
         checkLogin();
+        updateConnectionStatus(); // Initial status check
     </script>
 </body>
 </html>
