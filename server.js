@@ -319,7 +319,707 @@ app.post('/api/menu/bulk', async (req, res) => {
   }
 });
 
-// Continue with remaining endpoints in next part...
+// Staff endpoints
+app.get('/api/staff', async (req, res) => {
+  try {
+    if (USE_SUPABASE) {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('role', 'staff')
+        .order('name');
+      
+      if (error) throw error;
+      res.json(data);
+    } else {
+      const staff = db.prepare('SELECT * FROM staff ORDER BY name').all();
+      res.json(staff);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/staff', async (req, res) => {
+  try {
+    const { name } = req.body;
+    
+    if (USE_SUPABASE) {
+      const user = await getOrCreateStaffUser(name);
+      broadcast('staff_updated', { action: 'add', staff: user });
+      res.json(user);
+    } else {
+      const result = db.prepare('INSERT INTO staff (name) VALUES (?)').run(name);
+      const newStaff = db.prepare('SELECT * FROM staff WHERE id = ?').get(result.lastInsertRowid);
+      broadcast('staff_updated', { action: 'add', staff: newStaff });
+      res.json(newStaff);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/staff/:id', async (req, res) => {
+  try {
+    if (USE_SUPABASE) {
+      // Delete user and associated permissions
+      await supabase.from('staff_permissions').delete().eq('staff_id', req.params.id);
+      const { error } = await supabase.from('users').delete().eq('id', req.params.id);
+      if (error) throw error;
+    } else {
+      db.prepare('DELETE FROM staff WHERE id = ?').run(req.params.id);
+    }
+    
+    broadcast('staff_updated', { action: 'delete', id: req.params.id });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Staff permissions endpoints
+app.get('/api/staff/:id/permissions', async (req, res) => {
+  try {
+    if (USE_SUPABASE) {
+      const permissions = await getStaffPermissions(req.params.id);
+      res.json(permissions);
+    } else {
+      // For SQLite, return default permissions
+      res.json({ can_view_all_orders: false, allowed_staff_ids: [] });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/staff/:id/permissions', async (req, res) => {
+  try {
+    const { can_view_all_orders, allowed_staff_ids } = req.body;
+    
+    if (USE_SUPABASE) {
+      const permissions = await updateStaffPermissions(req.params.id, {
+        can_view_all_orders,
+        allowed_staff_ids
+      });
+      
+      await createAuditLog(
+        req.params.id,
+        'UPDATE_PERMISSIONS',
+        'staff_permissions',
+        req.params.id,
+        null,
+        { can_view_all_orders, allowed_staff_ids },
+        { userName: 'owner' }
+      );
+      
+      broadcast('permission_updated', permissions);
+      res.json(permissions);
+    } else {
+      // For SQLite, just acknowledge
+      res.json({ success: true });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Orders endpoints
+app.get('/api/orders', async (req, res) => {
+  try {
+    if (USE_SUPABASE) {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (*)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Transform to match expected format
+      const orders = data.map(order => ({
+        ...order,
+        items: order.order_items || []
+      }));
+      
+      res.json(orders);
+    } else {
+      const orders = db.prepare('SELECT * FROM orders ORDER BY created_at DESC').all();
+      
+      // Fetch items for each order
+      const getItems = db.prepare('SELECT * FROM order_items WHERE order_id = ?');
+      for (const order of orders) {
+        order.items = getItems.all(order.id);
+      }
+      
+      res.json(orders);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/orders', async (req, res) => {
+  try {
+    const { table_id, staff_name, items, status } = req.body;
+    
+    if (USE_SUPABASE) {
+      // Get or create staff user
+      const staff = await getOrCreateStaffUser(staff_name);
+      
+      // Create order
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          table_id,
+          staff_id: staff.id,
+          staff_name,
+          status: status || 'pending',
+          total: 0
+        })
+        .select()
+        .single();
+      
+      if (orderError) throw orderError;
+      
+      // Add items if provided
+      if (items && items.length > 0) {
+        const orderItems = items.map(item => ({
+          order_id: order.id,
+          item_name: item.name || item.item_name,
+          quantity: item.qty || item.quantity,
+          price: item.price
+        }));
+        
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(orderItems);
+        
+        if (itemsError) throw itemsError;
+        
+        // Calculate and update total
+        const total = items.reduce((sum, item) => sum + (item.price * (item.qty || item.quantity)), 0);
+        await supabase.from('orders').update({ total }).eq('id', order.id);
+        order.total = total;
+      }
+      
+      order.items = items || [];
+      
+      await createAuditLog(
+        staff.id,
+        'CREATE_ORDER',
+        'orders',
+        order.id,
+        null,
+        order,
+        { userName: staff_name }
+      );
+      
+      broadcast('order_created', order);
+      res.json(order);
+    } else {
+      const result = db.prepare(
+        'INSERT INTO orders (table_id, staff_name, status, total) VALUES (?, ?, ?, ?)'
+      ).run(table_id, staff_name, status || 'pending', 0);
+      
+      const orderId = result.lastInsertRowid;
+      
+      // Add items if provided
+      if (items && items.length > 0) {
+        const insertItem = db.prepare(
+          'INSERT INTO order_items (order_id, item_name, quantity, price) VALUES (?, ?, ?, ?)'
+        );
+        
+        let total = 0;
+        for (const item of items) {
+          insertItem.run(
+            orderId,
+            item.name || item.item_name,
+            item.qty || item.quantity,
+            item.price
+          );
+          total += item.price * (item.qty || item.quantity);
+        }
+        
+        // Update order total
+        db.prepare('UPDATE orders SET total = ? WHERE id = ?').run(total, orderId);
+      }
+      
+      const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+      order.items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(orderId);
+      
+      broadcast('order_created', order);
+      res.json(order);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch('/api/orders/:id', async (req, res) => {
+  try {
+    const updates = req.body;
+    
+    if (USE_SUPABASE) {
+      const { data, error } = await supabase
+        .from('orders')
+        .update(updates)
+        .eq('id', req.params.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      broadcast('order_updated', data);
+      res.json(data);
+    } else {
+      const fields = Object.keys(updates);
+      const values = Object.values(updates);
+      const setClause = fields.map(f => `${f} = ?`).join(', ');
+      
+      db.prepare(`UPDATE orders SET ${setClause} WHERE id = ?`).run(...values, req.params.id);
+      
+      const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+      order.items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(req.params.id);
+      
+      broadcast('order_updated', order);
+      res.json(order);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Kitchen orders endpoints
+app.get('/api/kitchen-orders', async (req, res) => {
+  try {
+    if (USE_SUPABASE) {
+      const { data, error } = await supabase
+        .from('kitchen_orders')
+        .select('*')
+        .order('sent_at', { ascending: false });
+      
+      if (error) throw error;
+      res.json(data);
+    } else {
+      const kitchenOrders = db.prepare('SELECT * FROM kitchen_orders ORDER BY sent_at DESC').all();
+      
+      // Parse items JSON
+      for (const order of kitchenOrders) {
+        order.items = JSON.parse(order.items);
+      }
+      
+      res.json(kitchenOrders);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/kitchen-orders', async (req, res) => {
+  try {
+    const { order_id, batch_id, staff_name, table_id, items, status } = req.body;
+    
+    if (USE_SUPABASE) {
+      const staff = await getOrCreateStaffUser(staff_name);
+      
+      const { data, error } = await supabase
+        .from('kitchen_orders')
+        .insert({
+          order_id,
+          batch_id,
+          staff_id: staff.id,
+          staff_name,
+          table_id,
+          items,
+          status: status || 'pending'
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Add items to order_items table
+      if (items && items.length > 0) {
+        const orderItems = items.map(item => ({
+          order_id,
+          item_name: item.name,
+          quantity: item.qty || item.quantity,
+          price: item.price
+        }));
+        
+        await supabase.from('order_items').insert(orderItems);
+      }
+      
+      await createAuditLog(
+        staff.id,
+        'SEND_TO_KITCHEN',
+        'kitchen_orders',
+        data.id,
+        null,
+        data,
+        { userName: staff_name }
+      );
+      
+      broadcast('kitchen_order_created', data);
+      res.json(data);
+    } else {
+      const result = db.prepare(
+        'INSERT INTO kitchen_orders (order_id, batch_id, staff_name, table_id, items, status) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(order_id, batch_id, staff_name, table_id, JSON.stringify(items), status || 'pending');
+      
+      const kitchenOrder = db.prepare('SELECT * FROM kitchen_orders WHERE id = ?').get(result.lastInsertRowid);
+      kitchenOrder.items = JSON.parse(kitchenOrder.items);
+      
+      broadcast('kitchen_order_created', kitchenOrder);
+      res.json(kitchenOrder);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch('/api/kitchen-orders/:id', async (req, res) => {
+  try {
+    const updates = req.body;
+    
+    if (USE_SUPABASE) {
+      const { data, error } = await supabase
+        .from('kitchen_orders')
+        .update(updates)
+        .eq('id', req.params.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      broadcast('kitchen_order_updated', data);
+      res.json(data);
+    } else {
+      const fields = Object.keys(updates);
+      const values = Object.values(updates);
+      const setClause = fields.map(f => `${f} = ?`).join(', ');
+      
+      db.prepare(`UPDATE kitchen_orders SET ${setClause} WHERE id = ?`).run(...values, req.params.id);
+      
+      const kitchenOrder = db.prepare('SELECT * FROM kitchen_orders WHERE id = ?').get(req.params.id);
+      kitchenOrder.items = JSON.parse(kitchenOrder.items);
+      
+      broadcast('kitchen_order_updated', kitchenOrder);
+      res.json(kitchenOrder);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bills endpoints
+app.get('/api/bills', async (req, res) => {
+  try {
+    const { search } = req.query;
+    
+    if (USE_SUPABASE) {
+      let query = supabase
+        .from('bills')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (search) {
+        // Supabase handles parameterization, but sanitize input
+        const sanitizedSearch = String(search).substring(0, 100); // Limit length
+        query = query.or(`bill_number.ilike.%${sanitizedSearch}%,staff_name.ilike.%${sanitizedSearch}%`);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      res.json(data);
+    } else {
+      let query = 'SELECT * FROM bills ORDER BY created_at DESC';
+      const bills = db.prepare(query).all();
+      
+      // Parse items JSON
+      for (const bill of bills) {
+        bill.items = JSON.parse(bill.items);
+      }
+      
+      // Filter by search if provided
+      if (search) {
+        const sanitizedSearch = String(search).toLowerCase().substring(0, 100);
+        const filtered = bills.filter(b => 
+          b.bill_number.toLowerCase().includes(sanitizedSearch) ||
+          b.staff_name.toLowerCase().includes(sanitizedSearch)
+        );
+        res.json(filtered);
+      } else {
+        res.json(bills);
+      }
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/bills/:id', async (req, res) => {
+  try {
+    if (USE_SUPABASE) {
+      const { data, error } = await supabase
+        .from('bills')
+        .select('*')
+        .eq('id', req.params.id)
+        .single();
+      
+      if (error) throw error;
+      res.json(data);
+    } else {
+      const bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(req.params.id);
+      if (bill) {
+        bill.items = JSON.parse(bill.items);
+      }
+      res.json(bill);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/bills', async (req, res) => {
+  try {
+    const { order_id, table_id, staff_name, items, subtotal, tax, total } = req.body;
+    
+    // Generate more robust bill number using UUID-like approach
+    const timestamp = Date.now();
+    const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const billNumber = `BILL-${timestamp}-${randomPart}`;
+    
+    if (USE_SUPABASE) {
+      const staff = await getOrCreateStaffUser(staff_name);
+      
+      const { data, error } = await supabase
+        .from('bills')
+        .insert({
+          order_id,
+          bill_number: billNumber,
+          table_id,
+          staff_id: staff.id,
+          staff_name,
+          items,
+          subtotal,
+          tax: tax || 0,
+          total
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      await createAuditLog(
+        staff.id,
+        'PRINT_BILL',
+        'bills',
+        data.id,
+        null,
+        data,
+        { userName: staff_name }
+      );
+      
+      broadcast('bill_created', data);
+      res.json(data);
+    } else {
+      const result = db.prepare(
+        'INSERT INTO bills (order_id, bill_number, table_id, staff_name, items, subtotal, tax, total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(order_id, billNumber, table_id, staff_name, JSON.stringify(items), subtotal, tax || 0, total);
+      
+      const bill = db.prepare('SELECT * FROM bills WHERE id = ?').get(result.lastInsertRowid);
+      bill.items = JSON.parse(bill.items);
+      
+      broadcast('bill_created', bill);
+      res.json(bill);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Settings endpoints
+app.get('/api/settings', async (req, res) => {
+  try {
+    if (USE_SUPABASE) {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('*');
+      
+      if (error) throw error;
+      
+      // Convert array to object
+      const settings = {};
+      for (const setting of data) {
+        settings[setting.key] = setting.value;
+      }
+      
+      res.json(settings);
+    } else {
+      const settingsArray = db.prepare('SELECT * FROM settings').all();
+      const settings = {};
+      for (const setting of settingsArray) {
+        settings[setting.key] = setting.value;
+      }
+      res.json(settings);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/settings', async (req, res) => {
+  try {
+    const { key, value } = req.body;
+    
+    if (USE_SUPABASE) {
+      const { data, error } = await supabase
+        .from('settings')
+        .upsert({ key, value }, { onConflict: 'key' })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      broadcast('setting_updated', data);
+      res.json(data);
+    } else {
+      db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
+      broadcast('setting_updated', { key, value });
+      res.json({ key, value });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Analytics endpoints
+app.get('/api/analytics/staff-performance', async (req, res) => {
+  try {
+    if (USE_SUPABASE) {
+      const { data, error } = await supabase.rpc('get_staff_performance');
+      
+      if (error) throw error;
+      res.json(data || []);
+    } else {
+      // Calculate staff performance from SQLite
+      const query = `
+        SELECT 
+          o.staff_name,
+          COUNT(o.id) as order_count,
+          COALESCE(SUM(o.total), 0) as total_revenue,
+          COALESCE(AVG(o.total), 0) as avg_order_value
+        FROM orders o
+        WHERE o.status = 'completed'
+        GROUP BY o.staff_name
+        ORDER BY total_revenue DESC
+      `;
+      
+      const performance = db.prepare(query).all();
+      res.json(performance);
+    }
+  } catch (error) {
+    console.error('Analytics error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/analytics/popular-items', async (req, res) => {
+  try {
+    if (USE_SUPABASE) {
+      const { data, error } = await supabase.rpc('get_popular_items');
+      
+      if (error) throw error;
+      res.json(data || []);
+    } else {
+      // Calculate popular items from SQLite
+      const query = `
+        SELECT 
+          oi.item_name,
+          SUM(oi.quantity) as total_quantity,
+          COUNT(DISTINCT oi.order_id) as order_count,
+          SUM(oi.quantity * oi.price) as total_revenue
+        FROM order_items oi
+        INNER JOIN orders o ON oi.order_id = o.id
+        WHERE o.status = 'completed'
+        GROUP BY oi.item_name
+        ORDER BY total_quantity DESC
+        LIMIT 20
+      `;
+      
+      const items = db.prepare(query).all();
+      res.json(items);
+    }
+  } catch (error) {
+    console.error('Analytics error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/analytics/daily-sales', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    
+    if (USE_SUPABASE) {
+      const { data, error } = await supabase.rpc('get_daily_sales', { days_count: days });
+      
+      if (error) throw error;
+      res.json(data || []);
+    } else {
+      // Calculate daily sales from SQLite
+      const query = `
+        SELECT 
+          DATE(created_at) as date,
+          COUNT(id) as order_count,
+          SUM(total) as total_revenue
+        FROM orders
+        WHERE status = 'completed'
+          AND created_at >= date('now', '-${days} days')
+        GROUP BY DATE(created_at)
+        ORDER BY date DESC
+      `;
+      
+      const sales = db.prepare(query).all();
+      res.json(sales);
+    }
+  } catch (error) {
+    console.error('Analytics error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/analytics/hourly-sales', async (req, res) => {
+  try {
+    if (USE_SUPABASE) {
+      const { data, error } = await supabase.rpc('get_hourly_sales');
+      
+      if (error) throw error;
+      res.json(data || []);
+    } else {
+      // Calculate hourly sales from SQLite
+      const query = `
+        SELECT 
+          CAST(strftime('%H', created_at) AS INTEGER) as hour,
+          COUNT(id) as order_count,
+          SUM(total) as total_revenue
+        FROM orders
+        WHERE status = 'completed'
+          AND DATE(created_at) = DATE('now')
+        GROUP BY CAST(strftime('%H', created_at) AS INTEGER)
+        ORDER BY hour
+      `;
+      
+      const sales = db.prepare(query).all();
+      res.json(sales);
+    }
+  } catch (error) {
+    console.error('Analytics error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
