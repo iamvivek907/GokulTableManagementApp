@@ -619,9 +619,65 @@
                 font-size: 20px;
             }
         }
+
+        /* PWA Update Notification */
+        .update-notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--color-primary);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            gap: 16px;
+            max-width: 90%;
+            animation: slideDown 0.3s ease;
+        }
+
+        .update-notification.show {
+            display: flex;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateX(-50%) translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .update-notification button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background: white;
+            color: var(--color-primary);
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .update-notification button:hover {
+            background: #f0f0f0;
+        }
     </style>
 </head>
 <body>
+    <!-- PWA Update Notification -->
+    <div class="update-notification" id="updateNotification">
+        <span>📱 New version available!</span>
+        <button onclick="applyUpdate()">Update Now</button>
+        <button onclick="dismissUpdate()" style="background: transparent; color: white; border: 1px solid white;">Later</button>
+    </div>
+
     <div class="container">
         <!-- Login Screen -->
         <div id="loginScreen" style="display: flex; align-items: center; justify-content: center; min-height: 100vh;">
@@ -1065,16 +1121,79 @@
     <script src="/bill-printer.js"></script>
     <script>
         // PWA Service Worker Registration
+        let swRegistration = null;
+        let updateAvailable = false;
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/service-worker.js')
                     .then(registration => {
                         console.log('ServiceWorker registered:', registration.scope);
+                        swRegistration = registration;
+
+                        // Check for updates every 60 seconds
+                        setInterval(() => {
+                            registration.update();
+                        }, 60000);
+
+                        // Listen for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            console.log('New service worker found, installing...');
+
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('New service worker installed, update available');
+                                    updateAvailable = true;
+                                    showUpdateNotification();
+                                }
+                            });
+                        });
                     })
                     .catch(error => {
                         console.log('ServiceWorker registration failed:', error);
                     });
+
+                // Listen for messages from service worker
+                navigator.serviceWorker.addEventListener('message', event => {
+                    if (event.data && event.data.type === 'SW_UPDATED') {
+                        console.log('Service worker updated to version:', event.data.version);
+                        showUpdateNotification();
+                    }
+                });
+
+                // Handle controlling service worker change
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (updateAvailable) {
+                        console.log('Controller changed, reloading page');
+                        window.location.reload();
+                    }
+                });
             });
+        }
+
+        function showUpdateNotification() {
+            const notification = document.getElementById('updateNotification');
+            if (notification) {
+                notification.classList.add('show');
+            }
+        }
+
+        function dismissUpdate() {
+            const notification = document.getElementById('updateNotification');
+            if (notification) {
+                notification.classList.remove('show');
+            }
+        }
+
+        function applyUpdate() {
+            if (swRegistration && swRegistration.waiting) {
+                // Tell the service worker to skip waiting
+                swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            } else {
+                // Force reload to activate new service worker
+                window.location.reload(true);
+            }
         }
 
         // Initialize Bill Printer
