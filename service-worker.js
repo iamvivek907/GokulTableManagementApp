@@ -1,11 +1,14 @@
-const CACHE_VERSION = '2.0.0';
+const CACHE_VERSION = '2.1.0';
 const CACHE_NAME = `gokul-restaurant-v${CACHE_VERSION}`;
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
   '/api-client.js',
-  '/bill-printer.js'
+  '/bill-printer.js',
+  '/state-manager.js',
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
 // Install service worker
