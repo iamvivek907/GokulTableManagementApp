@@ -1,29 +1,59 @@
-// Supabase Client Configuration and Helper Functions
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
+// Supabase Client Configuration for Browser
+// This is a browser-compatible version that doesn't use Node.js APIs
 
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Supabase credentials - will be injected during build or loaded from window
+const SUPABASE_URL = window.SUPABASE_URL || 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.warn('⚠️  Supabase credentials not found. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env file.');
-  console.warn('⚠️  Falling back to SQLite mode. To use Supabase, configure your .env file.');
+// Check if Supabase is configured
+if (!window.SUPABASE_URL && (SUPABASE_URL === 'YOUR_SUPABASE_URL' || !SUPABASE_URL)) {
+  console.warn('⚠️  Supabase not configured. Set window.SUPABASE_URL and window.SUPABASE_ANON_KEY');
+  console.warn('⚠️  Application will work in offline mode with localStorage');
 }
 
-const supabase = supabaseUrl && supabaseServiceKey 
-  ? createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true
+// Initialize Supabase client using CDN-loaded library
+let supabase = null;
+
+// Wait for Supabase library to load from CDN
+function initSupabase() {
+  if (typeof supabase === 'object' && supabase !== null) {
+    return Promise.resolve(supabase);
+  }
+  
+  return new Promise((resolve) => {
+    const checkSupabase = () => {
+      if (window.supabase && window.supabase.createClient) {
+        const url = window.SUPABASE_URL || SUPABASE_URL;
+        const key = window.SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
+        
+        if (url && key && url !== 'YOUR_SUPABASE_URL' && key !== 'YOUR_SUPABASE_ANON_KEY') {
+          supabase = window.supabase.createClient(url, key, {
+            auth: {
+              autoRefreshToken: true,
+              persistSession: true
+            }
+          });
+          console.log('✅ Supabase client initialized');
+          resolve(supabase);
+        } else {
+          console.warn('⚠️  Supabase credentials not properly configured');
+          resolve(null);
+        }
+      } else {
+        // Retry after 100ms if library not loaded yet
+        setTimeout(checkSupabase, 100);
       }
-    })
-  : null;
+    };
+    checkSupabase();
+  });
+}
 
 /**
  * Check if Supabase is configured and available
  */
-function isSupabaseEnabled() {
+async function isSupabaseEnabled() {
+  if (supabase) return true;
+  await initSupabase();
   return supabase !== null;
 }
 
@@ -31,6 +61,7 @@ function isSupabaseEnabled() {
  * Create audit log entry
  */
 async function createAuditLog(userId, action, entityType, entityId, oldValues, newValues, metadata = {}) {
+  await initSupabase();
   if (!supabase) return;
   
   try {
@@ -54,6 +85,7 @@ async function createAuditLog(userId, action, entityType, entityId, oldValues, n
  * Create notification for user
  */
 async function createNotification(userId, type, title, message, data = null) {
+  await initSupabase();
   if (!supabase) return;
   
   try {
@@ -82,6 +114,7 @@ async function createNotification(userId, type, title, message, data = null) {
  * Get user by ID or email
  */
 async function getUser(identifier) {
+  await initSupabase();
   if (!supabase) return null;
   
   try {
@@ -113,61 +146,46 @@ async function getUser(identifier) {
 
 /**
  * Get or create staff user
- * Note: Uses temporary email addresses for staff members.
- * In production, consider implementing proper user registration flow.
+ * Note: For browser-based app, we'll use simplified staff management
+ * without Supabase Auth (which requires service role key on server)
  */
 async function getOrCreateStaffUser(name) {
+  await initSupabase();
   if (!supabase) return { id: null, name };
   
   try {
-    // Check if user exists
-    let user = await getUser(name);
+    // Check if staff exists in staff table
+    const { data: existingStaff, error: fetchError } = await supabase
+      .from('staff')
+      .select('*')
+      .eq('name', name)
+      .maybeSingle();
     
-    if (!user) {
-      // Create new staff user in Supabase Auth
-      // Sanitize name for email: remove special chars, convert spaces to dots
-      const sanitizedName = name.toLowerCase()
-        .replace(/[^a-z0-9\s]/gi, '')  // Remove special characters
-        .replace(/\s+/g, '.');  // Replace spaces with dots
-      const email = `${sanitizedName}@gokul-staff.local`;
-      
-      // Generate secure random password using crypto
-      const crypto = require('crypto');
-      const password = `staff_${crypto.randomBytes(8).toString('hex')}`;
-      
-      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { name, role: 'staff' }
-      });
-      
-      if (authError) throw authError;
-      
-      // Create user profile
-      const { data: profile, error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: authUser.user.id,
-          name,
-          role: 'staff'
-        })
-        .select()
-        .single();
-      
-      if (profileError) throw profileError;
-      
-      // Create default permissions
-      await supabase.from('staff_permissions').insert({
-        staff_id: authUser.user.id,
-        can_view_all_orders: false,
-        allowed_staff_ids: []
-      });
-      
-      user = profile;
+    if (existingStaff) {
+      return existingStaff;
     }
     
-    return user;
+    // Create new staff member
+    const { data: newStaff, error: insertError } = await supabase
+      .from('staff')
+      .insert({
+        name,
+        role: 'staff',
+        email: `${name.toLowerCase().replace(/\s+/g, '.')}@gokul-staff.local`
+      })
+      .select()
+      .single();
+    
+    if (insertError) throw insertError;
+    
+    // Create default permissions
+    await supabase.from('staff_permissions').insert({
+      staff_id: newStaff.id,
+      can_view_other_orders: false,
+      allowed_staff_ids: []
+    });
+    
+    return newStaff;
   } catch (error) {
     console.error('Error getting/creating staff user:', error);
     return { id: null, name };
@@ -178,34 +196,35 @@ async function getOrCreateStaffUser(name) {
  * Check staff permissions
  */
 async function getStaffPermissions(staffId) {
-  if (!supabase) return { can_view_all_orders: false, allowed_staff_ids: [] };
+  await initSupabase();
+  if (!supabase) return { can_view_other_orders: false, allowed_staff_ids: [] };
   
   try {
     const { data, error } = await supabase
       .from('staff_permissions')
       .select('*')
       .eq('staff_id', staffId)
-      .single();
+      .maybeSingle();
     
-    if (error) {
+    if (!data) {
       // Create default permissions if not found
       const { data: newPerm } = await supabase
         .from('staff_permissions')
         .insert({
           staff_id: staffId,
-          can_view_all_orders: false,
+          can_view_other_orders: false,
           allowed_staff_ids: []
         })
         .select()
         .single();
       
-      return newPerm || { can_view_all_orders: false, allowed_staff_ids: [] };
+      return newPerm || { can_view_other_orders: false, allowed_staff_ids: [] };
     }
     
     return data;
   } catch (error) {
     console.error('Error getting staff permissions:', error);
-    return { can_view_all_orders: false, allowed_staff_ids: [] };
+    return { can_view_other_orders: false, allowed_staff_ids: [] };
   }
 }
 
@@ -213,6 +232,7 @@ async function getStaffPermissions(staffId) {
  * Update staff permissions
  */
 async function updateStaffPermissions(staffId, permissions) {
+  await initSupabase();
   if (!supabase) return null;
   
   try {
@@ -234,7 +254,8 @@ async function updateStaffPermissions(staffId, permissions) {
 /**
  * Subscribe to real-time changes
  */
-function subscribeToTable(table, callback, filter = null) {
+async function subscribeToTable(table, callback, filter = null) {
+  await initSupabase();
   if (!supabase) return null;
   
   let subscription = supabase
@@ -261,8 +282,9 @@ async function unsubscribe(subscription) {
   await supabase.removeChannel(subscription);
 }
 
-module.exports = {
-  supabase,
+// Export functions to global scope for browser use
+window.supabaseClient = {
+  initSupabase,
   isSupabaseEnabled,
   createAuditLog,
   createNotification,
