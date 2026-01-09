@@ -1249,7 +1249,31 @@
         </div>
     </div>
 
-    <script src="/api-client.js"></script>
+    <!-- Load Supabase from CDN with pinned version -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0"></script>
+    
+    <!-- Environment variables injection point (replaced during build) -->
+    <script>
+        // These will be replaced by actual values during GitHub Actions deployment
+        window.SUPABASE_URL = '{{ SUPABASE_URL }}';
+        window.SUPABASE_ANON_KEY = '{{ SUPABASE_ANON_KEY }}';
+        
+        // For local development, check if placeholders weren't replaced
+        if (window.SUPABASE_URL.startsWith('{{')) {
+            window.SUPABASE_URL = localStorage.getItem('SUPABASE_URL') || '';
+            window.SUPABASE_ANON_KEY = localStorage.getItem('SUPABASE_ANON_KEY') || '';
+            
+            // Show setup instructions if not configured
+            if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+                console.warn('⚠️  Supabase not configured for local development');
+                console.warn('Set in browser console: localStorage.setItem("SUPABASE_URL", "your_url")');
+                console.warn('Set in browser console: localStorage.setItem("SUPABASE_ANON_KEY", "your_key")');
+            }
+        }
+    </script>
+    
+    <script src="/supabase-client.js"></script>
+    <script src="/api-client-supabase.js"></script>
     <script src="/bill-printer.js"></script>
     <script src="/state-manager.js"></script>
     <script>
