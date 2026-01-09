@@ -9,6 +9,22 @@ function generateStaffEmail(name) {
   return `${sanitized}@gokul-staff.local`;
 }
 
+// Utility function for safe JSON parsing from localStorage
+function safeJSONParse(item, fallback) {
+  try {
+    return item ? JSON.parse(item) : fallback;
+  } catch (error) {
+    console.error('Error parsing JSON from localStorage:', error);
+    return fallback;
+  }
+}
+
+// Utility function to generate unique IDs (prevents collisions from Date.now())
+let idCounter = 0;
+function generateUniqueId() {
+  return Date.now() + (idCounter++);
+}
+
 class SupabaseAPIClient {
   constructor() {
     this.supabase = null;
@@ -148,7 +164,7 @@ class SupabaseAPIClient {
     if (!this.supabase) {
       // Fallback to localStorage
       const stored = localStorage.getItem('menu');
-      return stored ? JSON.parse(stored) : [];
+      return safeJSONParse(stored, []);
     }
 
     try {
@@ -171,7 +187,7 @@ class SupabaseAPIClient {
     
     if (!this.supabase) {
       // Fallback to localStorage
-      const menu = JSON.parse(localStorage.getItem('menu') || '[]');
+      const menu = safeJSONParse(localStorage.getItem('menu'), []);
       const newItem = { ...item, id: Date.now() };
       menu.push(newItem);
       localStorage.setItem('menu', JSON.stringify(menu));
@@ -198,7 +214,7 @@ class SupabaseAPIClient {
     
     if (!this.supabase) {
       // Fallback to localStorage
-      const menu = JSON.parse(localStorage.getItem('menu') || '[]');
+      const menu = safeJSONParse(localStorage.getItem('menu'), []);
       const filtered = menu.filter(item => item.id !== id);
       localStorage.setItem('menu', JSON.stringify(filtered));
       return;
@@ -224,23 +240,52 @@ class SupabaseAPIClient {
       // Fallback to localStorage
       const itemsWithIds = items.map((item, idx) => ({
         ...item,
-        id: Date.now() + idx
+        id: generateUniqueId()
       }));
       localStorage.setItem('menu', JSON.stringify(itemsWithIds));
       return itemsWithIds;
     }
 
     try {
+      // Backup existing items for rollback
+      const { data: existingItems, error: fetchError } = await this.supabase
+        .from('menu')
+        .select('*');
+      
+      if (fetchError) throw fetchError;
+      
       // Delete all existing items
-      await this.supabase.from('menu').delete().neq('id', 0);
+      const { error: deleteError } = await this.supabase
+        .from('menu')
+        .delete()
+        .gt('id', 0);
+      
+      if (deleteError) throw deleteError;
       
       // Insert new items
-      const { data, error } = await this.supabase
+      const { data, error: insertError } = await this.supabase
         .from('menu')
         .insert(items)
         .select();
       
-      if (error) throw error;
+      if (insertError) {
+        // Attempt rollback to previous state
+        console.error('Error inserting new menu items, attempting rollback...');
+        try {
+          if (existingItems && existingItems.length > 0) {
+            const { id, created_at, updated_at, ...itemsToRestore } = existingItems[0];
+            await this.supabase.from('menu').insert(existingItems.map(item => {
+              const { id, created_at, updated_at, ...rest } = item;
+              return rest;
+            }));
+            console.log('✅ Rollback successful');
+          }
+        } catch (rollbackError) {
+          console.error('❌ Error rolling back menu after failed bulk update:', rollbackError);
+        }
+        throw insertError;
+      }
+      
       return data;
     } catch (error) {
       console.error('Error bulk updating menu:', error);
@@ -254,7 +299,7 @@ class SupabaseAPIClient {
     
     if (!this.supabase) {
       const stored = localStorage.getItem('staffList');
-      const names = stored ? JSON.parse(stored) : [];
+      const names = safeJSONParse(stored, []);
       return names.map((name, idx) => ({ id: idx + 1, name, role: 'staff' }));
     }
 
@@ -276,7 +321,7 @@ class SupabaseAPIClient {
     await this.init();
     
     if (!this.supabase) {
-      const staffList = JSON.parse(localStorage.getItem('staffList') || '[]');
+      const staffList = safeJSONParse(localStorage.getItem('staffList'), []);
       if (!staffList.includes(name)) {
         staffList.push(name);
         localStorage.setItem('staffList', JSON.stringify(staffList));
@@ -297,12 +342,23 @@ class SupabaseAPIClient {
       
       if (error) throw error;
       
-      // Create default permissions
-      await this.supabase.from('staff_permissions').insert({
-        staff_id: data.id,
-        can_view_other_orders: false,
-        allowed_staff_ids: []
-      });
+      // Create default permissions - if this fails, rollback by deleting the staff
+      try {
+        const { error: permError } = await this.supabase
+          .from('staff_permissions')
+          .insert({
+            staff_id: data.id,
+            can_view_other_orders: false,
+            allowed_staff_ids: []
+          });
+        
+        if (permError) throw permError;
+      } catch (permError) {
+        // Rollback: delete the staff member we just created
+        console.error('Error creating staff permissions, rolling back staff creation...');
+        await this.supabase.from('staff').delete().eq('id', data.id);
+        throw new Error(`Failed to create staff permissions: ${permError.message}`);
+      }
       
       return data;
     } catch (error) {
@@ -315,7 +371,17 @@ class SupabaseAPIClient {
     await this.init();
     
     if (!this.supabase) {
-      // Fallback implementation
+      // Offline fallback: remove staff member from localStorage
+      const staffList = safeJSONParse(localStorage.getItem('staffList'), []);
+      
+      // ID in localStorage is 1-based index
+      const index = typeof id === 'number' ? id - 1 : -1;
+      if (index < 0 || index >= staffList.length) {
+        throw new Error(`Cannot delete staff: invalid offline staff id "${id}"`);
+      }
+      
+      staffList.splice(index, 1);
+      localStorage.setItem('staffList', JSON.stringify(staffList));
       return;
     }
 
@@ -338,7 +404,7 @@ class SupabaseAPIClient {
     
     if (!this.supabase) {
       const stored = localStorage.getItem('orders');
-      return stored ? JSON.parse(stored) : [];
+      return safeJSONParse(stored, []);
     }
 
     try {
@@ -367,7 +433,7 @@ class SupabaseAPIClient {
     await this.init();
     
     if (!this.supabase) {
-      const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+      const orders = safeJSONParse(localStorage.getItem('orders'), []);
       const newOrder = {
         ...order,
         id: Date.now(),
@@ -392,7 +458,29 @@ class SupabaseAPIClient {
         .single();
       
       if (error) throw error;
-      return { ...data, items: [] };
+      
+      // Insert associated order items, if any
+      const items = Array.isArray(order.items) ? order.items : [];
+      let createdItems = [];
+
+      if (items.length > 0) {
+        const { data: itemsData, error: itemsError } = await this.supabase
+          .from('order_items')
+          .insert(
+            items.map(item => ({
+              order_id: data.id,
+              item_name: item.name || item.item_name,
+              quantity: item.qty || item.quantity || 1,
+              price: item.price || 0
+            }))
+          )
+          .select();
+
+        if (itemsError) throw itemsError;
+        createdItems = itemsData || [];
+      }
+
+      return { ...data, items: createdItems };
     } catch (error) {
       console.error('Error creating order:', error);
       throw error;
@@ -403,7 +491,7 @@ class SupabaseAPIClient {
     await this.init();
     
     if (!this.supabase) {
-      const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+      const orders = safeJSONParse(localStorage.getItem('orders'), []);
       const index = orders.findIndex(o => o.id === id);
       if (index !== -1) {
         orders[index] = { ...orders[index], ...updates };
@@ -434,7 +522,7 @@ class SupabaseAPIClient {
     
     if (!this.supabase) {
       const stored = localStorage.getItem('kitchenOrders');
-      return stored ? JSON.parse(stored) : [];
+      return safeJSONParse(stored, []);
     }
 
     try {
@@ -455,7 +543,7 @@ class SupabaseAPIClient {
     await this.init();
     
     if (!this.supabase) {
-      const kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrders') || '[]');
+      const kitchenOrders = safeJSONParse(localStorage.getItem('kitchenOrders'), []);
       const newOrder = {
         ...order,
         id: Date.now(),
@@ -492,7 +580,7 @@ class SupabaseAPIClient {
     await this.init();
     
     if (!this.supabase) {
-      const kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrders') || '[]');
+      const kitchenOrders = safeJSONParse(localStorage.getItem('kitchenOrders'), []);
       const index = kitchenOrders.findIndex(o => o.id === id);
       if (index !== -1) {
         kitchenOrders[index] = { ...kitchenOrders[index], ...updates };
@@ -523,7 +611,7 @@ class SupabaseAPIClient {
     
     if (!this.supabase) {
       const stored = localStorage.getItem('bills');
-      return stored ? JSON.parse(stored) : [];
+      return safeJSONParse(stored, []);
     }
 
     try {
@@ -642,7 +730,7 @@ class SupabaseAPIClient {
     await this.init();
     
     if (!this.supabase) {
-      const settings = JSON.parse(localStorage.getItem('settings') || '{}');
+      const settings = safeJSONParse(localStorage.getItem('settings'), {});
       settings[key] = value;
       localStorage.setItem('settings', JSON.stringify(settings));
       return { key, value };

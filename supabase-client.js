@@ -34,6 +34,9 @@ function initSupabase() {
   }
   
   return new Promise((resolve) => {
+    const maxRetries = 50; // 5 seconds total (50 * 100ms)
+    let retryCount = 0;
+    
     const checkSupabase = () => {
       if (window.supabase && window.supabase.createClient) {
         const url = window.SUPABASE_URL || SUPABASE_URL;
@@ -52,9 +55,13 @@ function initSupabase() {
           console.warn('⚠️  Supabase credentials not properly configured');
           resolve(null);
         }
-      } else {
+      } else if (retryCount < maxRetries) {
         // Retry after 100ms if library not loaded yet
+        retryCount++;
         setTimeout(checkSupabase, 100);
+      } else {
+        console.error('❌ Failed to load Supabase library from CDN after 5 seconds');
+        resolve(null);
       }
     };
     checkSupabase();
@@ -168,7 +175,7 @@ async function getOrCreateStaffUser(name) {
   
   try {
     // Check if staff exists in staff table
-    const { data: existingStaff, error: fetchError } = await supabase
+    const { data: existingStaff } = await supabase
       .from('staff')
       .select('*')
       .eq('name', name)
