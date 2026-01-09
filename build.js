@@ -28,7 +28,7 @@ let html = fs.readFileSync(indexPath, 'utf8');
 html = html.replace(/\{\{ SUPABASE_URL \}\}/g, SUPABASE_URL);
 html = html.replace(/\{\{ SUPABASE_ANON_KEY \}\}/g, SUPABASE_ANON_KEY);
 
-// Write to dist directory instead of overwriting source
+// Write to dist directory
 const distIndexPath = path.join(distPath, 'index.html');
 fs.writeFileSync(distIndexPath, html, 'utf8');
 
@@ -36,10 +36,6 @@ fs.writeFileSync(distIndexPath, html, 'utf8');
 const filesToCopy = [
   'manifest.json',
   'service-worker.js',
-  'api-client-supabase.js',
-  'supabase-client.js',
-  'bill-printer.js',
-  'state-manager.js',
   'icon-192.png',
   'icon-512.png'
 ];
@@ -52,8 +48,9 @@ filesToCopy.forEach(file => {
   }
 });
 
-console.log('✅ Build complete - environment variables injected into dist/index.html');
+console.log('✅ Build complete - self-contained application created in dist/');
 console.log(`   SUPABASE_URL: ${SUPABASE_URL ? '✅ Set' : '❌ Not set'}`);
 console.log(`   SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY ? '✅ Set' : '❌ Not set'}`);
-console.log('   Output directory: dist/');
+console.log('   All JavaScript and CSS are inlined in index.html');
+console.log('   No external file dependencies (except Supabase CDN)');
 
