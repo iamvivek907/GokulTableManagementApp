@@ -14,9 +14,22 @@ if (!window.SUPABASE_URL && (SUPABASE_URL === 'YOUR_SUPABASE_URL' || !SUPABASE_U
 // Initialize Supabase client using CDN-loaded library
 let supabase = null;
 
+/**
+ * Utility function to generate email from staff name
+ * @param {string} name - Staff member's name
+ * @returns {string} - Generated email address
+ */
+function generateStaffEmail(name) {
+  const sanitized = name.toLowerCase()
+    .replace(/[^a-z0-9\s]/gi, '')
+    .replace(/\s+/g, '.');
+  return `${sanitized}@gokul-staff.local`;
+}
+
 // Wait for Supabase library to load from CDN
 function initSupabase() {
-  if (typeof supabase === 'object' && supabase !== null) {
+  if (supabase && typeof supabase === 'object' && supabase.from) {
+    // Already initialized
     return Promise.resolve(supabase);
   }
   
@@ -171,7 +184,7 @@ async function getOrCreateStaffUser(name) {
       .insert({
         name,
         role: 'staff',
-        email: `${name.toLowerCase().replace(/\s+/g, '.')}@gokul-staff.local`
+        email: generateStaffEmail(name)
       })
       .select()
       .single();

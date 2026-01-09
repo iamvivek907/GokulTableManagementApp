@@ -1,6 +1,14 @@
 // Direct Supabase API Client for Browser
 // This replaces the Node.js backend with direct Supabase calls
 
+// Utility function for generating staff emails
+function generateStaffEmail(name) {
+  const sanitized = name.toLowerCase()
+    .replace(/[^a-z0-9\s]/gi, '')
+    .replace(/\s+/g, '.');
+  return `${sanitized}@gokul-staff.local`;
+}
+
 class SupabaseAPIClient {
   constructor() {
     this.supabase = null;
@@ -282,7 +290,7 @@ class SupabaseAPIClient {
         .insert({
           name,
           role: 'staff',
-          email: `${name.toLowerCase().replace(/\s+/g, '.')}@gokul-staff.local`
+          email: generateStaffEmail(name)
         })
         .select()
         .single();
