@@ -40,6 +40,9 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          # Uploads entire directory including documentation files.
+          # Documentation files (*.md, *.sql) are harmless in production
+          # and useful for users viewing the raw repository on GitHub Pages.
           path: '.'
 
       - name: Deploy to GitHub Pages

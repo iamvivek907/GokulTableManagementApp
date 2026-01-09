@@ -112,17 +112,60 @@ CREATE INDEX IF NOT EXISTS idx_bills_created_at ON public.bills(created_at DESC)
 CREATE INDEX IF NOT EXISTS idx_bills_staff_name ON public.bills(staff_name);
 
 -- ===== ROW LEVEL SECURITY (RLS) =====
--- Disable RLS for this simple implementation (browser-based app)
--- Enable if you want to add proper authentication later
+-- RLS is enabled to allow defining explicit access policies.
+-- Current policies are permissive to preserve existing behavior.
 
-ALTER TABLE public.staff DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.staff_permissions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.menu DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.orders DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.order_items DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.kitchen_orders DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.bills DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.staff ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.staff_permissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.menu ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kitchen_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bills ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+
+-- Permissive policies to preserve current open-access behavior.
+-- These can be tightened later to restrict access per role/user.
+
+CREATE POLICY "staff_full_access"
+  ON public.staff
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "staff_permissions_full_access"
+  ON public.staff_permissions
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "menu_full_access"
+  ON public.menu
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "orders_full_access"
+  ON public.orders
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "order_items_full_access"
+  ON public.order_items
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "kitchen_orders_full_access"
+  ON public.kitchen_orders
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "bills_full_access"
+  ON public.bills
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "settings_full_access"
+  ON public.settings
+  USING (true)
+  WITH CHECK (true);
 
 -- ===== FUNCTIONS =====
 

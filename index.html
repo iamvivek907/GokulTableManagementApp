@@ -2091,7 +2091,6 @@ class SupabaseAPIClient {
         console.error('Error inserting new menu items, attempting rollback...');
         try {
           if (existingItems && existingItems.length > 0) {
-            const { id, created_at, updated_at, ...itemsToRestore } = existingItems[0];
             await this.supabase.from('menu').insert(existingItems.map(item => {
               const { id, created_at, updated_at, ...rest } = item;
               return rest;
@@ -2654,7 +2653,7 @@ class SupabaseAPIClient {
     }
 
     try {
-      const { data, error} = await this.supabase
+      const { data, error } = await this.supabase
         .rpc('get_hourly_sales');
       
       if (error) throw error;
@@ -2676,7 +2675,6 @@ class SupabaseAPIClient {
 
 // Create global instance
 const apiClient = new SupabaseAPIClient();
-    </script>
 
 // Initialize on load
 window.addEventListener('DOMContentLoaded', () => {
@@ -2684,6 +2682,8 @@ window.addEventListener('DOMContentLoaded', () => {
     console.error('Failed to initialize API client:', error);
   });
 });
+    </script>
+    
     <script>
         // PWA Service Worker Registration
         let swRegistration = null;

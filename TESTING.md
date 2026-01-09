@@ -13,7 +13,7 @@ localStorage.setItem('SUPABASE_ANON_KEY', 'your_key');
 ### GitHub Pages Deployment
 1. Add GitHub Secrets: SUPABASE_URL, SUPABASE_ANON_KEY
 2. Push to main branch → Auto-deploys
-3. Test at: `https://username.github.io/Gokul TableManagementApp/`
+3. Test at: `https://username.github.io/GokulTableManagementApp/`
 
 ### Supabase Setup
 1. Create project at supabase.com
