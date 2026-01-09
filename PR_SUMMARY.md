@@ -87,7 +87,7 @@ Supabase (Direct connection)
 ## 📦 Files Created
 
 ### Core Implementation
-1. **api-client-supabase.js** (1,010 lines)
+1. **api-client-supabase.js** (871 lines)
    - Complete API client using Supabase directly
    - All CRUD operations for menu, staff, orders, bills
    - Real-time subscriptions for live updates
@@ -95,7 +95,7 @@ Supabase (Direct connection)
    - Offline fallback to localStorage
    - Comprehensive error handling
 
-2. **supabase-client.js** (280 lines)
+2. **supabase-client.js** (317 lines)
    - Browser-compatible Supabase wrapper
    - Initializes Supabase from CDN
    - Environment variable handling
@@ -399,12 +399,13 @@ Just open `index.html` in browser. App will use localStorage for all data.
 ## 📈 Lines of Code
 
 ### Added
-- api-client-supabase.js: 1,010 lines
-- supabase-client.js: 280 lines
+- api-client-supabase.js: 871 lines
+- supabase-client.js: 317 lines
 - TESTING.md: 460 lines
 - IMPLEMENTATION_FIXES.md: 310 lines
-- build.js: 25 lines
-- **Total**: ~2,085 lines
+- build.js: 60 lines
+- PR_SUMMARY.md: 750 lines
+- **Total**: ~2,768 lines
 
 ### Modified
 - index.html: ~50 lines changed
