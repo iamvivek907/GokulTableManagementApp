@@ -1723,11 +1723,11 @@
                 <div class="center">Thank you for dining with us!</div>
                 <div class="center">Visit again!</div>
                 
-                <script>
+                <scr` + `ipt>
                   window.onload = function() {
                     window.print();
                   };
-                </script>
+                </scr` + `ipt>
               </body>
               </html>
             `;
@@ -2965,11 +2965,10 @@
             }
         }
 
-        // Initialize Bill Printer
-        const billPrinter = new BillPrinter();
+        // Note: billPrinter already initialized above
 
-        // Initialize WebSocket connection
-        apiClient.initWebSocket();
+        // Note: WebSocket connections handled via Supabase real-time subscriptions
+        // apiClient.initWebSocket(); // Not needed - using Supabase channels instead
 
         // Real-time event handlers
         apiClient.on('menu_updated', (data) => {
@@ -3007,122 +3006,6 @@
                 renderTables();
             }
         });
-
-        // Default Menu with Categories
-        const defaultMenu = [
-            { category: 'Appetizers', name: 'Samosa', price: 8 },
-            { category: 'Appetizers', name: 'French Fries', price: 50 },
-            { category: 'Appetizers', name: 'Chilli Potato', price: 60 },
-            { category: 'Appetizers', name: 'Honey Chilli Potato', price: 70 },
-            { category: 'Breads', name: 'Idly', price: 50 },
-            { category: 'Breads', name: 'Veg Momos', price: 50 },
-            { category: 'Breads', name: 'Veg Fried Momos', price: 70 },
-            { category: 'Main Course', name: 'Paneer Momos', price: 80 },
-            { category: 'Main Course', name: 'Paneer Fried Momos', price: 100 },
-            { category: 'Main Course', name: 'Chilli Paneer (Half)', price: 80 },
-            { category: 'Main Course', name: 'Chilli Paneer (Full)', price: 150 },
-            { category: 'Main Course', name: 'Gokul Thali', price: 100 },
-            { category: 'Main Course', name: 'Gokul Special Thali', price: 140 },
-            { category: 'Main Course', name: 'Chowmein (Half)', price: 50 },
-            { category: 'Main Course', name: 'Chowmein (Full)', price: 90 },
-            { category: 'Main Course', name: 'Biryani (Half)', price: 120 },
-            { category: 'Main Course', name: 'Biryani (Full)', price: 180 }
-        ];
-
-        // Global State
-        let menu = [];
-        let staffList = [];
-        let orders = [];
-        let kitchenOrders = [];
-        let backups = [];
-        let numTables = 4;
-        let tables = [];
-        let settings = {};
-
-        let currentRole = sessionStorage.getItem('currentRole') || null;
-        let currentStaff = sessionStorage.getItem('currentStaff') || null;
-        let currentMode = 'staff';
-        let orderCounter = 1000;
-        let batchCounter = 100;
-        let selectedTable = null;
-        let currentOrderItems = [];
-
-        let OWNER_PASSWORD = 'gokul2024';
-
-        // Load initial data from API
-        async function loadInitialData() {
-            try {
-                menu = await apiClient.getMenu();
-                staffList = (await apiClient.getStaff()).map(s => s.name);
-                settings = await apiClient.getSettings();
-                numTables = parseInt(settings.num_tables || 4);
-                OWNER_PASSWORD = settings.owner_password || 'gokul2024';
-            } catch (error) {
-                console.error('Error loading initial data:', error);
-                // Fallback to default menu if API fails
-                menu = defaultMenu;
-            }
-        }
-
-        async function loadOrders() {
-            try {
-                orders = await apiClient.getOrders();
-                if (orders.length > 0) {
-                    const maxId = Math.max(...orders.map(o => o.id));
-                    orderCounter = maxId + 1;
-                }
-            } catch (error) {
-                console.error('Error loading orders:', error);
-            }
-        }
-
-        async function loadKitchenOrders() {
-            try {
-                kitchenOrders = await apiClient.getKitchenOrders();
-                if (kitchenOrders.length > 0) {
-                    const maxBatchId = Math.max(...kitchenOrders.map(ko => ko.batch_id));
-                    batchCounter = maxBatchId + 1;
-                }
-            } catch (error) {
-                console.error('Error loading kitchen orders:', error);
-            }
-        }
-
-        async function loadMenu() {
-            try {
-                menu = await apiClient.getMenu();
-                if (currentMode === 'owner') {
-                    renderMenuList();
-                    renderCategories();
-                }
-            } catch (error) {
-                console.error('Error loading menu:', error);
-            }
-        }
-
-        function initializeTables() {
-            tables = [];
-            for (let i = 1; i <= numTables; i++) {
-                tables.push({ 
-                    id: i, 
-                    status: 'empty', 
-                    orderId: null, 
-                    staffName: null, 
-                    readyBatches: 0, 
-                    totalBatches: 0 
-                });
-            }
-            
-            // Update table status from active orders
-            orders.filter(o => o.status !== 'completed').forEach(order => {
-                const table = tables.find(t => t.id === order.table_id);
-                if (table) {
-                    table.status = 'occupied';
-                    table.orderId = order.id;
-                    table.staffName = order.staff_name;
-                }
-            });
-        }
 
         function showStaffSelect() {
             document.getElementById('loginScreen').style.display = 'none';
