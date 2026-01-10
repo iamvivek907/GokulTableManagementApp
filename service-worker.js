@@ -1,11 +1,11 @@
-const CACHE_VERSION = '2.0.0';
+const CACHE_VERSION = '3.0.0';
 const CACHE_NAME = `gokul-restaurant-v${CACHE_VERSION}`;
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/api-client.js',
-  '/bill-printer.js'
+  './',
+  './index.html',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 // Install service worker
@@ -68,7 +68,7 @@ self.addEventListener('fetch', event => {
           
           // Return offline page for navigation requests
           if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
+            return caches.match('./index.html');
           }
           
           return new Response('Offline', { status: 503 });
@@ -136,8 +136,8 @@ self.addEventListener('push', event => {
     const data = event.data.json();
     const options = {
       body: data.body || 'New notification',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: './icon-192.png',
+      badge: './icon-192.png',
       vibrate: [200, 100, 200],
       data: data.data || {}
     };
@@ -153,7 +153,7 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   event.waitUntil(
-    clients.openWindow('/')
+    clients.openWindow('./')
   );
 });
 
